@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wingman — Results</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<style>
+:root{--bg:#10182d;--panel:#1a2540;--panel-alt:#1e2b50;--hover:#2a3560;--border:#2a3560;--blue:#6c8cff;--teal:#00e0b8;--orange:#f0a500;--red:#e05c5c;--text:#f5f7ff;--muted:#8892b0;--radius:14px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:32px 24px}
+h1{font-size:1.6rem;font-weight:800;margin-bottom:4px}
+.subtitle{color:var(--muted);font-size:.92rem;margin-bottom:28px}
+
+/* Dropdowns */
+.filters{display:flex;gap:14px;margin-bottom:24px}
+select{appearance:none;background:var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238892b0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center;
+  border:1px solid var(--border);color:var(--text);padding:12px 40px 12px 16px;border-radius:10px;font-family:inherit;font-size:.92rem;font-weight:600;cursor:pointer;min-width:260px}
+select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px rgba(108,140,255,.2)}
+select option{background:var(--panel);color:var(--text)}
+
+/* Summary bar */
+.summary{display:none;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;margin-bottom:20px;gap:28px;align-items:center}
+.summary.visible{display:flex}
+.summary-title{font-size:1.05rem;font-weight:700}
+.summary-code{color:var(--blue);font-family:'Courier New',monospace;font-size:.85rem;margin-top:2px}
+.summary-stat{text-align:center}
+.summary-stat .val{font-size:1.3rem;font-weight:800}
+.summary-stat .lbl{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.summary-bar-wrap{flex:1;max-width:200px}
+.summary-bar{height:8px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden}
+.summary-bar .fill{height:100%;border-radius:99px;transition:width .5s}
+
+/* Table */
+.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none}
+.table-wrap.visible{display:block}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:12px 16px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--border)}
+td{padding:12px 16px;font-size:.88rem;border-bottom:1px solid rgba(255,255,255,.03)}
+tr:nth-child(odd) td{background:var(--panel)}
+tr:nth-child(even) td{background:var(--panel-alt)}
+tr:hover td{background:var(--hover)}
+.los-id{font-family:'Courier New',monospace;color:var(--blue);font-weight:600;font-size:.82rem;white-space:nowrap}
+.los-desc{max-width:300px;color:var(--text);line-height:1.4}
+.badge{display:inline-block;padding:4px 10px;border-radius:99px;font-size:.75rem;font-weight:700;white-space:nowrap}
+.badge-green{background:rgba(0,224,184,.12);color:var(--teal)}
+.badge-orange{background:rgba(240,165,0,.12);color:var(--orange)}
+.badge-red{background:rgba(224,92,92,.12);color:var(--red)}
+.badge-blue{background:rgba(108,140,255,.12);color:var(--blue)}
+.badge-grey{background:rgba(255,255,255,.06);color:var(--muted)}
+.trend-up{color:var(--teal)}
+.trend-down{color:var(--red)}
+.trend-flat{color:var(--muted)}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:.95rem}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Results — LOS Performance</h1>
+  <p class="subtitle">Track your mastery at the Learning Outcome Statement level.</p>
+
+  <div class="filters">
+    <select id="topicSelect" onchange="onTopicChange()">
+      <option value="">Select a Topic</option>
+    </select>
+    <select id="lmSelect" onchange="onLMChange()" disabled>
+      <option value="">Select a Learning Module</option>
+    </select>
+  </div>
+
+  <div class="summary" id="summary"></div>
+  <div class="table-wrap" id="tableWrap">
+    <table>
+      <thead>
+        <tr>
+          <th>LOS ID</th>
+          <th>Description</th>
+          <th>Questions</th>
+          <th>% Correct</th>
+          <th>Last Attempt</th>
+          <th>Trend</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="empty" id="emptyState">Select a Topic and Learning Module above to view LOS results.</div>
+</div>
+
+<script>
+// ── Seed Data ──
+const TOPICS = {
+  ETH: { name: 'Ethical & Professional Standards', lms: [
+    { code:'ETH-LM01', title:'Ethics and Trust in the Investment Profession', los:[
+      {id:'LOS01',desc:'Describe ethics and the role of a code of ethics',q:18,pct:78,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Distinguish between ethical and legal standards',q:15,pct:67,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Describe principles of CFA Institute Code of Ethics',q:12,pct:83,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS04',desc:'Identify challenges to ethical conduct',q:8,pct:50,last:5,trend:'down',status:'Weak'},
+    ]},
+    { code:'ETH-LM04', title:'Introduction to GIPS', los:[
+      {id:'LOS01',desc:'Explain why GIPS standards were created',q:10,pct:70,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Describe key features of GIPS standards',q:7,pct:57,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Explain fundamentals of compliance with GIPS',q:5,pct:40,last:7,trend:'down',status:'Weak'},
+    ]},
+    { code:'ETH-LM05', title:'Ethics Application', los:[
+      {id:'LOS01',desc:'Evaluate practices and situations using Code and Standards',q:20,pct:65,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Identify violations of CFA Institute Standards',q:14,pct:71,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS03',desc:'Recommend procedures to prevent violations',q:6,pct:33,last:8,trend:'down',status:'Weak'},
+    ]},
+  ]},
+  QM: { name: 'Quantitative Methods', lms: [
+    { code:'QM-LM01', title:'Rates and Returns', los:[
+      {id:'LOS01',desc:'Interpret interest rates as required rates of return',q:12,pct:75,last:2,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Calculate and interpret different return measures',q:15,pct:60,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Compare money-weighted and time-weighted rates',q:10,pct:50,last:5,trend:'down',status:'Weak'},
+    ]},
+    { code:'QM-LM02', title:'Time Value of Money', los:[
+      {id:'LOS01',desc:'Calculate future value and present value',q:22,pct:82,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Calculate the value of perpetuities',q:8,pct:63,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Calculate PV and FV of annuities',q:18,pct:72,last:2,trend:'up',status:'Mastered'},
+      {id:'LOS04',desc:'Demonstrate cash flow additivity',q:6,pct:33,last:9,trend:'down',status:'Weak'},
+      {id:'LOS05',desc:'Calculate loan payments and amortization',q:14,pct:57,last:3,trend:'flat',status:'In Progress'},
+    ]},
+    { code:'QM-LM03', title:'Statistical Measures of Asset Returns', los:[
+      {id:'LOS01',desc:'Calculate and interpret measures of central tendency',q:16,pct:69,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Calculate and interpret measures of dispersion',q:11,pct:55,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Interpret skewness and kurtosis',q:7,pct:43,last:6,trend:'down',status:'Weak'},
+    ]},
+    { code:'QM-LM07', title:'Estimation and Inference', los:[
+      {id:'LOS01',desc:'Describe properties of point estimators',q:9,pct:56,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS02',desc:'Calculate and interpret confidence intervals',q:13,pct:62,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS03',desc:'Describe the t-distribution',q:5,pct:40,last:8,trend:'down',status:'Weak'},
+    ]},
+    { code:'QM-LM08', title:'Hypothesis Testing', los:[
+      {id:'LOS01',desc:'Define a hypothesis and describe steps of hypothesis testing',q:10,pct:80,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Distinguish between one-tailed and two-tailed tests',q:8,pct:75,last:2,trend:'up',status:'Mastered'},
+      {id:'LOS03',desc:'Interpret p-values',q:12,pct:58,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS04',desc:'Identify Type I and Type II errors',q:6,pct:33,last:10,trend:'down',status:'Weak'},
+    ]},
+    { code:'QM-LM10', title:'Simple Linear Regression', los:[
+      {id:'LOS01',desc:'Describe a simple linear regression model',q:8,pct:63,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS02',desc:'Interpret regression coefficients',q:10,pct:50,last:5,trend:'down',status:'Weak'},
+      {id:'LOS03',desc:'Calculate and interpret R-squared',q:7,pct:71,last:2,trend:'up',status:'In Progress'},
+    ]},
+  ]},
+  ECO: { name: 'Economics', lms: [
+    { code:'ECO-LM01', title:'The Firm and Market Structures', los:[
+      {id:'LOS01',desc:'Describe characteristics of perfect competition',q:14,pct:71,last:2,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Explain pricing strategy under monopoly',q:10,pct:60,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Describe oligopoly and game theory',q:7,pct:43,last:7,trend:'down',status:'Weak'},
+      {id:'LOS04',desc:'Identify market structure from firm characteristics',q:12,pct:67,last:3,trend:'up',status:'In Progress'},
+    ]},
+    { code:'ECO-LM02', title:'Understanding Business Cycles', los:[
+      {id:'LOS01',desc:'Describe phases of the business cycle',q:11,pct:82,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Describe credit cycles',q:6,pct:50,last:5,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Describe leading and lagging indicators',q:9,pct:56,last:4,trend:'down',status:'In Progress'},
+    ]},
+    { code:'ECO-LM04', title:'Monetary Policy', los:[
+      {id:'LOS01',desc:'Describe the objectives of monetary policy',q:10,pct:70,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Describe tools of monetary policy',q:8,pct:63,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Explain the transmission mechanism',q:5,pct:40,last:8,trend:'down',status:'Weak'},
+    ]},
+    { code:'ECO-LM06', title:'International Trade', los:[
+      {id:'LOS01',desc:'Describe benefits and costs of international trade',q:9,pct:78,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Compare absolute and comparative advantage',q:12,pct:67,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Explain trade restrictions and their effects',q:7,pct:57,last:5,trend:'down',status:'In Progress'},
+    ]},
+  ]},
+  FSA: { name: 'Financial Statement Analysis', lms: [
+    { code:'FSA-LM01', title:'Introduction to Financial Statement Analysis', los:[
+      {id:'LOS01',desc:'Describe roles of financial reporting and analysis',q:10,pct:80,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Describe roles of key financial statements',q:12,pct:75,last:2,trend:'up',status:'Mastered'},
+      {id:'LOS03',desc:'Describe importance of financial statement notes',q:8,pct:63,last:4,trend:'flat',status:'In Progress'},
+    ]},
+    { code:'FSA-LM02', title:'Analyzing Income Statements', los:[
+      {id:'LOS01',desc:'Describe revenue recognition principles',q:15,pct:53,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS02',desc:'Calculate and interpret gross profit margin',q:18,pct:72,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS03',desc:'Distinguish between operating and non-operating items',q:10,pct:60,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS04',desc:'Calculate basic and diluted EPS',q:8,pct:38,last:7,trend:'down',status:'Weak'},
+    ]},
+    { code:'FSA-LM06', title:'Analysis of Inventories', los:[
+      {id:'LOS01',desc:'Distinguish between FIFO, LIFO, weighted average',q:20,pct:65,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Calculate COGS and ending inventory',q:14,pct:57,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Analyze effects of inventory method choice',q:10,pct:40,last:6,trend:'down',status:'Weak'},
+      {id:'LOS04',desc:'Calculate inventory turnover and days of inventory',q:8,pct:75,last:1,trend:'up',status:'Mastered'},
+    ]},
+    { code:'FSA-LM07', title:'Analysis of Long-Lived Assets', los:[
+      {id:'LOS01',desc:'Distinguish between capitalization and expensing',q:12,pct:67,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS02',desc:'Calculate depreciation under different methods',q:16,pct:56,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS03',desc:'Describe impairment of long-lived assets',q:6,pct:33,last:9,trend:'down',status:'Weak'},
+    ]},
+    { code:'FSA-LM11', title:'Financial Analysis Techniques', los:[
+      {id:'LOS01',desc:'Describe common-size analysis',q:10,pct:80,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Calculate and interpret financial ratios',q:22,pct:68,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS03',desc:'Describe DuPont decomposition of ROE',q:8,pct:75,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS04',desc:'Calculate and interpret activity ratios',q:12,pct:58,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS05',desc:'Describe limitations of ratio analysis',q:5,pct:40,last:8,trend:'down',status:'Weak'},
+    ]},
+  ]},
+  CORP: { name: 'Corporate Issuers', lms: [
+    { code:'CORP-LM01', title:'Organizational Forms, Features, and Ownership', los:[
+      {id:'LOS01',desc:'Compare types of business organizations',q:10,pct:70,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Describe key features of corporate governance',q:8,pct:63,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Explain principal-agent relationships',q:6,pct:50,last:6,trend:'down',status:'Weak'},
+    ]},
+    { code:'CORP-LM05', title:'Capital Investments and Capital Allocation', los:[
+      {id:'LOS01',desc:'Describe the capital budgeting process',q:12,pct:75,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Calculate and interpret NPV and IRR',q:18,pct:61,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Describe advantages and limitations of payback period',q:8,pct:50,last:5,trend:'down',status:'In Progress'},
+      {id:'LOS04',desc:'Describe real options in capital budgeting',q:4,pct:25,last:12,trend:'down',status:'Weak'},
+    ]},
+    { code:'CORP-LM06', title:'Capital Structure', los:[
+      {id:'LOS01',desc:'Describe Modigliani-Miller propositions',q:10,pct:50,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS02',desc:'Describe the costs of financial distress',q:7,pct:43,last:6,trend:'down',status:'Weak'},
+      {id:'LOS03',desc:'Describe the target capital structure',q:9,pct:67,last:2,trend:'up',status:'In Progress'},
+    ]},
+  ]},
+  EQU: { name: 'Equity Investments', lms: [
+    { code:'EQU-LM01', title:'Market Organization and Structure', los:[
+      {id:'LOS01',desc:'Explain main functions of financial markets',q:10,pct:80,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Describe types of financial intermediaries',q:8,pct:75,last:2,trend:'up',status:'Mastered'},
+      {id:'LOS03',desc:'Compare order types',q:12,pct:67,last:3,trend:'flat',status:'In Progress'},
+    ]},
+    { code:'EQU-LM03', title:'Market Efficiency', los:[
+      {id:'LOS01',desc:'Describe the concept of market efficiency',q:14,pct:71,last:2,trend:'up',status:'Mastered'},
+      {id:'LOS02',desc:'Distinguish between weak, semi-strong, and strong forms',q:10,pct:60,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Describe market anomalies',q:8,pct:50,last:5,trend:'down',status:'In Progress'},
+    ]},
+    { code:'EQU-LM05', title:'Equity Valuation: Concepts and Basic Tools', los:[
+      {id:'LOS01',desc:'Evaluate dividend discount models',q:16,pct:69,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Calculate intrinsic value using Gordon growth model',q:20,pct:75,last:1,trend:'up',status:'Mastered'},
+      {id:'LOS03',desc:'Calculate price multiples',q:12,pct:58,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS04',desc:'Explain enterprise value multiples',q:6,pct:33,last:8,trend:'down',status:'Weak'},
+    ]},
+  ]},
+  FI: { name: 'Fixed Income', lms: [
+    { code:'FI-LM01', title:'Fixed-Income Instrument Features', los:[
+      {id:'LOS01',desc:'Describe features of fixed-income securities',q:12,pct:58,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS02',desc:'Describe content of a bond indenture',q:8,pct:50,last:5,trend:'down',status:'In Progress'},
+      {id:'LOS03',desc:'Compare affirmative and negative covenants',q:6,pct:33,last:8,trend:'down',status:'Weak'},
+    ]},
+    { code:'FI-LM02', title:'Bond Valuation', los:[
+      {id:'LOS01',desc:'Calculate the price of a bond using market discount rate',q:18,pct:56,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Identify relationship between bond price and yield',q:10,pct:70,last:1,trend:'up',status:'In Progress'},
+      {id:'LOS03',desc:'Calculate flat price, accrued interest, full price',q:8,pct:38,last:6,trend:'down',status:'Weak'},
+    ]},
+    { code:'FI-LM04', title:'Interest Rate Risk', los:[
+      {id:'LOS01',desc:'Calculate and interpret Macaulay duration',q:14,pct:43,last:4,trend:'down',status:'Weak'},
+      {id:'LOS02',desc:'Calculate and interpret modified duration',q:12,pct:50,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Describe convexity and its effect on bond price',q:6,pct:33,last:9,trend:'down',status:'Weak'},
+      {id:'LOS04',desc:'Calculate percentage price change using duration and convexity',q:10,pct:40,last:5,trend:'down',status:'Weak'},
+    ]},
+  ]},
+  DER: { name: 'Derivatives', lms: [
+    { code:'DER-LM01', title:'Derivative Instrument and Market Features', los:[
+      {id:'LOS01',desc:'Define a derivative and describe types',q:10,pct:60,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS02',desc:'Describe exchange-traded vs OTC derivatives',q:8,pct:50,last:5,trend:'down',status:'In Progress'},
+      {id:'LOS03',desc:'Describe the benefits and risks of derivatives',q:6,pct:33,last:8,trend:'down',status:'Weak'},
+    ]},
+    { code:'DER-LM02', title:'Forward Commitments', los:[
+      {id:'LOS01',desc:'Describe forward contracts',q:12,pct:58,last:3,trend:'flat',status:'In Progress'},
+      {id:'LOS02',desc:'Describe futures contracts and margins',q:10,pct:50,last:4,trend:'flat',status:'In Progress'},
+      {id:'LOS03',desc:'Describe interest rate swaps',q:8,pct:38,last:7,trend:'down',status:'Weak'},
+      {id:'LOS04',desc:'Calculate payoff of forward and futures',q:6,pct:33,last:10,trend:'down',status:'Weak'},
+    ]},
+    { code:'DER-LM03', title:'Contingent Claims', los:[
+      {id:'LOS01',desc:'Describe options and option payoffs',q:14,pct:64,last:2,trend:'up',status:'In Progress'},
+      {id:'LOS02',desc:'Define intrinsic value and time value',q:10,pct:70,last:1,trend:'up',status:'In Progress'},
+      {id:'LOS03',desc:'Explain put-call parity',q:8,pct:38,last:6,trend:'down',status:'Weak'},
+    ]},
+  ]},
+}
+
+// ── Init ──
+const topicSel = document.getElementById('topicSelect')
+const lmSel = document.getElementById('lmSelect')
+Object.keys(TOPICS).forEach(k => {
+  const o = document.createElement('option'); o.value = k; o.textContent = `${k} — ${TOPICS[k].name}`; topicSel.appendChild(o)
+})
+
+function onTopicChange() {
+  const t = topicSel.value
+  lmSel.innerHTML = '<option value="">Select a Learning Module</option>'
+  lmSel.disabled = !t
+  document.getElementById('summary').className = 'summary'
+  document.getElementById('tableWrap').className = 'table-wrap'
+  document.getElementById('emptyState').style.display = t ? 'block' : 'block'
+  if (!t) return
+  TOPICS[t].lms.forEach(lm => {
+    const o = document.createElement('option'); o.value = lm.code; o.textContent = `${lm.code} — ${lm.title}`; lmSel.appendChild(o)
+  })
+}
+
+function onLMChange() {
+  const t = topicSel.value, code = lmSel.value
+  if (!t || !code) { document.getElementById('summary').className='summary'; document.getElementById('tableWrap').className='table-wrap'; document.getElementById('emptyState').style.display='block'; return }
+  const lm = TOPICS[t].lms.find(l => l.code === code)
+  if (!lm) return
+  document.getElementById('emptyState').style.display = 'none'
+
+  // Summary
+  const totalQ = lm.los.reduce((s,l) => s+l.q, 0)
+  const totalCorrect = lm.los.reduce((s,l) => s + Math.round(l.q * l.pct / 100), 0)
+  const overallPct = totalQ > 0 ? Math.round(totalCorrect / totalQ * 100) : 0
+  const attempted = lm.los.filter(l => l.q > 0).length
+  const barColor = overallPct >= 70 ? 'var(--teal)' : overallPct >= 50 ? 'var(--orange)' : 'var(--red)'
+
+  document.getElementById('summary').className = 'summary visible'
+  document.getElementById('summary').innerHTML = `
+    <div><div class="summary-title">${lm.title}</div><div class="summary-code">${lm.code}</div></div>
+    <div class="summary-stat"><div class="val" style="color:${barColor}">${overallPct}%</div><div class="lbl">Overall Score</div></div>
+    <div class="summary-stat"><div class="val">${totalQ}</div><div class="lbl">Questions</div></div>
+    <div class="summary-stat"><div class="val">${attempted}/${lm.los.length}</div><div class="lbl">LOS Attempted</div></div>
+    <div class="summary-bar-wrap"><div class="summary-bar"><div class="fill" style="width:${overallPct}%;background:${barColor}"></div></div></div>
+  `
+
+  // Table
+  const tbody = document.getElementById('tbody')
+  tbody.innerHTML = ''
+  lm.los.forEach(l => {
+    const pctClass = l.pct >= 70 ? 'badge-green' : l.pct >= 50 ? 'badge-orange' : 'badge-red'
+    const statusClass = l.status === 'Mastered' ? 'badge-green' : l.status === 'In Progress' ? 'badge-blue' : l.status === 'Weak' ? 'badge-red' : 'badge-grey'
+    const trendIcon = l.trend === 'up' ? '<i class="fa-solid fa-arrow-up trend-up"></i>' : l.trend === 'down' ? '<i class="fa-solid fa-arrow-down trend-down"></i>' : '<i class="fa-solid fa-arrow-right trend-flat"></i>'
+    const lastText = l.last === 0 ? 'Never' : l.last === 1 ? 'Yesterday' : `${l.last} days ago`
+    const tr = document.createElement('tr')
+    tr.innerHTML = `
+      <td class="los-id">${code}-${l.id}</td>
+      <td class="los-desc">${l.desc}</td>
+      <td>${l.q}</td>
+      <td><span class="badge ${pctClass}">${l.pct}%</span></td>
+      <td style="color:var(--muted);font-size:.82rem">${lastText}</td>
+      <td>${trendIcon}</td>
+      <td><span class="badge ${statusClass}">${l.status}</span></td>
+    `
+    tbody.appendChild(tr)
+  })
+  document.getElementById('tableWrap').className = 'table-wrap visible'
+}
+</script>
+</body>
+</html>

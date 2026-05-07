@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wingman — Architecture & Data Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0d14;
+  --card: #111827;
+  --card-hover: #1a2236;
+  --border: #1f2937;
+  --text: #f1f5f9;
+  --muted: #6b7280;
+  --blue: #3b82f6;
+  --cyan: #06b6d4;
+  --green: #22c55e;
+  --orange: #f97316;
+  --red: #ef4444;
+  --purple: #8b5cf6;
+  --gold: #eab308;
+  --pink: #ec4899;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', system-ui, sans-serif;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; }
+
+/* ── NAV ── */
+.topnav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,13,20,.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; height: 56px;
+  display: flex; align-items: center; gap: 32px;
+}
+.topnav .logo { font-size: 18px; font-weight: 800; color: #fff; }
+.topnav .logo span { color: var(--blue); }
+.topnav a {
+  color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600;
+  padding: 6px 12px; border-radius: 8px; transition: all .2s;
+}
+.topnav a:hover, .topnav a.active { color: #fff; background: rgba(255,255,255,.06); }
+
+/* ── LAYOUT ── */
+.container { max-width: 1200px; margin: 0 auto; padding: 48px 24px; }
+.section { margin-bottom: 72px; }
+.section-title {
+  font-size: 28px; font-weight: 800; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+}
+.section-title .num {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--blue); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800;
+}
+.section-sub { color: var(--muted); font-size: 15px; margin-bottom: 32px; }
+
+/* ── FLOWCHART ── */
+.flow { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.flow-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.flow-node {
+  padding: 14px 22px; border-radius: var(--radius);
+  font-weight: 600; font-size: 14px;
+  border: 1.5px solid; position: relative;
+  cursor: pointer; transition: all .2s;
+  min-width: 140px; text-align: center;
+}
+.flow-node:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.flow-node.start { background: rgba(34,197,94,.1); border-color: var(--green); color: var(--green); }
+.flow-node.action { background: rgba(59,130,246,.08); border-color: var(--blue); color: var(--blue); }
+.flow-node.process { background: rgba(139,92,246,.08); border-color: var(--purple); color: var(--purple); }
+.flow-node.data { background: rgba(6,182,212,.08); border-color: var(--cyan); color: var(--cyan); border-radius: 0 var(--radius) 0 var(--radius); }
+.flow-node.decision { background: rgba(249,115,22,.08); border-color: var(--orange); color: var(--orange); transform: rotate(0deg); }
+.flow-node.end { background: rgba(236,72,153,.08); border-color: var(--pink); color: var(--pink); }
+.flow-node small { display: block; font-size: 11px; font-weight: 400; opacity: .7; margin-top: 4px; }
+
+.flow-arrow {
+  width: 2px; height: 28px; background: var(--border); position: relative; margin: 0 auto;
+}
+.flow-arrow::after {
+  content: ''; position: absolute; bottom: -5px; left: -4px;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-top: 6px solid var(--border);
+}
+.flow-arrow-h {
+  width: 32px; height: 2px; background: var(--border); position: relative;
+}
+.flow-arrow-h::after {
+  content: ''; position: absolute; right: -5px; top: -4px;
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  border-left: 6px solid var(--border);
+}
+.flow-label {
+  font-size: 11px; color: var(--muted); font-weight: 500;
+  padding: 2px 8px; background: var(--card); border-radius: 4px; margin: -4px 0;
+}
+.flow-branch { display: flex; gap: 32px; align-items: flex-start; justify-content: center; }
+.flow-branch-col { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+/* ── PIPELINE ── */
+.pipeline { display: flex; flex-direction: column; gap: 24px; }
+.pipe-layer {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; position: relative; overflow: hidden;
+}
+.pipe-layer::before {
+  content: attr(data-label);
+  position: absolute; top: 12px; right: 16px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+  padding: 3px 10px; border-radius: 6px;
+}
+.pipe-layer.collect::before { background: rgba(59,130,246,.15); color: var(--blue); }
+.pipe-layer.process::before { background: rgba(139,92,246,.15); color: var(--purple); }
+.pipe-layer.store::before { background: rgba(6,182,212,.15); color: var(--cyan); }
+.pipe-layer.serve::before { background: rgba(34,197,94,.15); color: var(--green); }
+
+.pipe-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+.pipe-items { display: flex; flex-wrap: wrap; gap: 8px; }
+.pipe-item {
+  font-family: var(--mono); font-size: 12px; padding: 6px 12px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 8px; color: var(--text);
+}
+.pipe-item.endpoint { border-color: rgba(59,130,246,.3); color: var(--blue); }
+.pipe-item.service { border-color: rgba(139,92,246,.3); color: var(--purple); }
+.pipe-item.table { border-color: rgba(6,182,212,.3); color: var(--cyan); }
+.pipe-item.api { border-color: rgba(34,197,94,.3); color: var(--green); }
+
+.pipe-connector {
+  display: flex; justify-content: center; padding: 0;
+}
+.pipe-connector .flow-arrow { height: 20px; }
+
+/* ── WIDGET CARDS ── */
+.widget-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+.widget-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; transition: all .2s; cursor: default;
+}
+.widget-card:hover { border-color: rgba(255,255,255,.12); background: var(--card-hover); }
+.widget-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.widget-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.widget-name { font-size: 15px; font-weight: 700; }
+.widget-component { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.widget-desc { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+
+.widget-meta { display: flex; flex-direction: column; gap: 6px; }
+.widget-meta-row {
+  display: flex; align-items: flex-start; gap: 8px; font-size: 12px;
+}
+.widget-meta-label {
+  font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+  padding: 2px 8px; border-radius: 4px; font-size: 10px; flex-shrink: 0;
+  white-space: nowrap;
+}
+.label-api { background: rgba(34,197,94,.12); color: var(--green); }
+.label-db { background: rgba(6,182,212,.12); color: var(--cyan); }
+.label-calc { background: rgba(249,115,22,.12); color: var(--orange); }
+.label-local { background: rgba(234,179,8,.12); color: var(--gold); }
+.widget-meta-value { font-family: var(--mono); font-size: 11px; color: #cbd5e1; line-height: 1.5; }
+
+/* ── GROUP HEADERS ── */
+.group-header {
+  display: flex; align-items: center; gap: 12px;
+  margin: 32px 0 16px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.group-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.group-title { font-size: 18px; font-weight: 700; }
+.group-count { font-size: 13px; color: var(--muted); }
+
+/* ── LEGEND ── */
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── FORMULA CARDS ── */
+.formula-grid { display: flex; flex-direction: column; gap: 16px; }
+.formula-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; transition: border-color .2s;
+}
+.formula-card:hover { border-color: rgba(255,255,255,.12); }
+.formula-card.changed { border-color: var(--green); }
+.formula-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px; cursor: pointer; user-select: none;
+}
+.formula-head:hover { background: rgba(255,255,255,.02); }
+.formula-chevron {
+  width: 20px; height: 20px; transition: transform .2s; color: var(--muted); flex-shrink: 0;
+}
+.formula-card.open .formula-chevron { transform: rotate(90deg); }
+.formula-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}
+.formula-title { font-size: 14px; font-weight: 700; flex: 1; }
+.formula-status {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  padding: 3px 10px; border-radius: 6px;
+}
+.status-current { background: rgba(59,130,246,.12); color: var(--blue); }
+.status-proposed { background: rgba(34,197,94,.12); color: var(--green); }
+.status-broken { background: rgba(239,68,68,.12); color: var(--red); }
+
+.formula-body {
+  display: none; padding: 0 20px 20px; border-top: 1px solid var(--border);
+}
+.formula-card.open .formula-body { display: block; padding-top: 16px; }
+
+.formula-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;
+}
+@media (max-width: 768px) { .formula-row { grid-template-columns: 1fr; } }
+
+.formula-box {
+  background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px; padding: 14px;
+}
+.formula-box-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.formula-box-title.current { color: var(--blue); }
+.formula-box-title.proposed { color: var(--green); }
+
+.formula-code {
+  font-family: var(--mono); font-size: 12px; line-height: 1.7;
+  color: #cbd5e1; white-space: pre-wrap;
+}
+.formula-code .kw { color: var(--purple); }
+.formula-code .fn { color: var(--blue); }
+.formula-code .num { color: var(--orange); }
+.formula-code .str { color: var(--green); }
+.formula-code .cmt { color: var(--muted); font-style: italic; }
+.formula-code .var { color: var(--cyan); }
+
+.formula-input {
+  width: 100%; min-height: 80px; padding: 12px;
+  background: rgba(0,0,0,.3); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: var(--mono);
+  font-size: 12px; line-height: 1.7; resize: vertical;
+}
+.formula-input:focus { outline: none; border-color: var(--green); }
+.formula-input::placeholder { color: var(--muted); }
+
+.formula-notes {
+  font-size: 12px; color: var(--muted); line-height: 1.6;
+  padding: 10px 12px; background: rgba(249,115,22,.05);
+  border-left: 3px solid var(--orange); border-radius: 0 8px 8px 0;
+  margin-top: 12px;
+}
+
+.formula-tables {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+}
+.formula-table-tag {
+  font-family: var(--mono); font-size: 10px; padding: 3px 8px;
+  border-radius: 4px; background: rgba(6,182,212,.1); color: var(--cyan);
+  border: 1px solid rgba(6,182,212,.2);
+}
+
+.save-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+  background: rgba(10,13,20,.95); backdrop-filter: blur(12px);
+  border-top: 1px solid var(--green);
+  padding: 12px 32px; display: none; align-items: center; justify-content: space-between;
+}
+.save-bar.visible { display: flex; }
+.save-bar .count { color: var(--green); font-weight: 700; font-size: 14px; }
+.save-btn {
+  padding: 10px 24px; background: var(--green); color: #000;
+  border: none; border-radius: 8px; font-weight: 700; font-size: 14px;
+  cursor: pointer; font-family: var(--sans);
+}
+.save-btn:hover { background: #16a34a; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .topnav { padding: 0 16px; gap: 12px; overflow-x: auto; }
+  .container { padding: 24px 16px; }
+  .widget-grid { grid-template-columns: 1fr; }
+  .flow-row { flex-direction: column; }
+  .flow-arrow-h { width: 2px; height: 24px; }
+  .flow-arrow-h::after {
+    right: auto; top: auto; bottom: -5px; left: -4px;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid var(--border); border-left: 5px solid transparent;
+  }
+  .flow-branch { flex-direction: column; gap: 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topnav">
+  <div class="logo">Wing<span>man</span> Architecture</div>
+  <a href="#activity" class="active">Parcours utilisateur</a>
+  <a href="#pipeline">Pipeline de donnees</a>
+  <a href="#widgets">Widgets</a>
+  <a href="#formulas">Formules de calcul</a>
+</nav>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 1 : DIAGRAMME D'ACTIVITE                      -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="activity" class="section">
+  <div class="section-title"><div class="num">1</div> Parcours utilisateur</div>
+  <p class="section-sub">Diagramme d'activite complet — de l'inscription a la boucle d'apprentissage quotidienne</p>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Entree/Sortie</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Action utilisateur</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Traitement systeme</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div> Donnees</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> Decision</div>
+  </div>
+
+  <div class="flow">
+    <!-- Start -->
+    <div class="flow-node start">Nouvel utilisateur<small>Acces wingman.veridis.shop</small></div>
+    <div class="flow-arrow"></div>
+
+    <!-- Auth -->
+    <div class="flow-node action">Login / Inscription<small>POST /api/auth/send-code ou Google OAuth</small></div>
+    <div class="flow-arrow"></div>
+    <div class="flow-node data">DB: users + user_profiles<small>UUID, exam_date (+90j), daily_goal (90min)</small></div>
+    <div class="flow-arrow"></div>
+
+    <!-- Onboarding -->
+    <div class="flow-node action">Onboarding<small>exam_date, hours/week, session_duration, level</small></div>
+    <div class="flow-arrow"></div>
+    <div class="flow-node data">localStorage: wingman_onboarding<small>Config utilisateur sauvee localement</small></div>
+    <div class="flow-arrow"></div>
+
+    <!-- Study Plan -->
+    <div class="flow-node process">Generation Study Plan<small>study-plan-engine.ts (100% client-side)</small></div>
+    <div class="flow-arrow"></div>
+    <div class="flow-node data">localStorage: wingman_study_plan<small>24+ semaines, phases Discovery/Reinforcement/Assessment/Final</small></div>
+    <div class="flow-arrow"></div>
+
+    <!-- Daily loop start -->
+    <div class="flow-label" style="background:var(--green);color:#fff;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:700;">BOUCLE QUOTIDIENNE</div>
+    <div class="flow-arrow"></div>
+
+    <!-- Today Mission -->
+    <div class="flow-node action">Today Mission (Dashboard)<small>GET /api/diagnostic + /api/kpis/*</small></div>
+    <div class="flow-arrow"></div>
+
+    <!-- Session choice -->
+    <div class="flow-node decision">Choisir type de session<small>Energie (High/Mid/Low) + Duree (30-120min)</small></div>
+    <div class="flow-arrow"></div>
+
+    <!-- Branch: 4 session types -->
+    <div class="flow-branch">
+      <div class="flow-branch-col">
+        <div class="flow-node action" style="border-color:var(--blue)">Quiz QCM<small>POST /api/qcm/start</small></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node process">Repondre aux questions<small>N questions, timer actif</small></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node action">Soumettre<small>POST /api/qcm/submit</small></div>
+      </div>
+      <div class="flow-branch-col">
+        <div class="flow-node action" style="border-color:var(--purple)">Mock Exam<small>POST /api/mock/start</small></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node process">180 questions<small>Stratifie par poids CFA</small></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node action">Soumettre<small>POST /api/mock/submit</small></div>
+      </div>
+      <div class="flow-branch-col">
+        <div class="flow-node action" style="border-color:var(--cyan)">Flashcards<small>GET /api/flashcards</small></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node process">Review SRS<small>Score: Again/Hard/Good</small></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node action">Evaluer<small>POST /api/flashcards/review</small></div>
+      </div>
+      <div class="flow-branch-col">
+        <div class="flow-node action" style="border-color:var(--green)">Etude libre<small>POST /api/v1/session/start</small></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node process">Lecture + notes<small>Pomodoro 45min/15min</small></div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node action">Stop<small>POST /api/v1/session/stop</small></div>
+      </div>
+    </div>
+
+    <div class="flow-arrow" style="height:20px"></div>
+
+    <!-- Post-session processing -->
+    <div class="flow-node process">Traitement post-session<small>5 services backend en cascade</small></div>
+    <div class="flow-arrow"></div>
+
+    <div class="flow-row">
+      <div class="flow-node data" style="font-size:11px">sessions<small>duration, type</small></div>
+      <div class="flow-node data" style="font-size:11px">performance_records<small>score, questions</small></div>
+      <div class="flow-node data" style="font-size:11px">question_attempts<small>reponse, temps</small></div>
+      <div class="flow-node data" style="font-size:11px">lm_mastery<small>AVG(5 derniers)</small></div>
+      <div class="flow-node data" style="font-size:11px">srs_queue<small>ease, interval</small></div>
+    </div>
+
+    <div class="flow-arrow"></div>
+
+    <!-- Decision: score ok? -->
+    <div class="flow-node decision">Score >= 60% ?</div>
+    <div class="flow-arrow"></div>
+
+    <div class="flow-row">
+      <div class="flow-branch-col">
+        <div class="flow-label">OUI</div>
+        <div class="flow-arrow" style="height:12px"></div>
+        <div class="flow-node process" style="font-size:12px">SRS: interval x ease_factor<small>Prochaine review repoussee</small></div>
+      </div>
+      <div style="width:40px"></div>
+      <div class="flow-branch-col">
+        <div class="flow-label">NON</div>
+        <div class="flow-arrow" style="height:12px"></div>
+        <div class="flow-node end" style="font-size:12px">Alerte faiblesse<small>weakness_log + alert + recalibrate plan</small></div>
+      </div>
+    </div>
+
+    <div class="flow-arrow"></div>
+
+    <!-- Debrief -->
+    <div class="flow-node action">Debrief / AI Analysis<small>POST /api/ai/analyze-session (Claude Sonnet)</small></div>
+    <div class="flow-arrow"></div>
+    <div class="flow-node data">session_analyses<small>Cache JSONB: patterns, faiblesses, recommandations</small></div>
+    <div class="flow-arrow"></div>
+
+    <!-- Results -->
+    <div class="flow-node action">Consulter Results<small>3 onglets: Diagnostic / Performance / Progress</small></div>
+    <div class="flow-arrow"></div>
+
+    <div class="flow-label" style="background:var(--orange);color:#fff;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:700;">RETOUR BOUCLE QUOTIDIENNE</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 2 : PIPELINE DE DONNEES                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="pipeline" class="section">
+  <div class="section-title"><div class="num">2</div> Pipeline de donnees</div>
+  <p class="section-sub">De l'action utilisateur au widget — les 4 couches du systeme</p>
+
+  <div class="pipeline">
+    <!-- Layer 1: Collecte -->
+    <div class="pipe-layer collect" data-label="Collecte">
+      <div class="pipe-title">Actions utilisateur (Frontend → API)</div>
+      <div class="pipe-items">
+        <div class="pipe-item endpoint">POST /api/qcm/submit</div>
+        <div class="pipe-item endpoint">POST /api/mock/submit</div>
+        <div class="pipe-item endpoint">POST /api/session/record</div>
+        <div class="pipe-item endpoint">POST /api/flashcards/review</div>
+        <div class="pipe-item endpoint">POST /api/v1/session/start</div>
+        <div class="pipe-item endpoint">POST /api/v1/session/stop</div>
+        <div class="pipe-item endpoint">POST /api/plan/entry/{id}/complete</div>
+        <div class="pipe-item endpoint">POST /api/plan/recalibrate</div>
+      </div>
+    </div>
+
+    <div class="pipe-connector"><div class="flow-arrow"></div></div>
+
+    <!-- Layer 2: Traitement -->
+    <div class="pipe-layer process" data-label="Traitement">
+      <div class="pipe-title">Services backend (cascade automatique)</div>
+      <div class="pipe-items">
+        <div class="pipe-item service">mastery.py → update_mastery()<br><span style="font-size:10px;color:var(--muted)">AVG(5 derniers scores) → UPSERT lm_mastery</span></div>
+        <div class="pipe-item service">srs.py → update_srs()<br><span style="font-size:10px;color:var(--muted)">ease_factor, interval_days, next_review</span></div>
+        <div class="pipe-item service">weakness_detector.py<br><span style="font-size:10px;color:var(--muted)">Si score &lt;60: log + alert + classify</span></div>
+        <div class="pipe-item service">scheduler.py<br><span style="font-size:10px;color:var(--muted)">daily_snapshot, check_plan_delay, weekly_reports</span></div>
+        <div class="pipe-item service">content_pipeline.py<br><span style="font-size:10px;color:var(--muted)">PDF + audio + embeddings generation</span></div>
+      </div>
+    </div>
+
+    <div class="pipe-connector"><div class="flow-arrow"></div></div>
+
+    <!-- Layer 3: Stockage -->
+    <div class="pipe-layer store" data-label="Stockage">
+      <div class="pipe-title">Tables PostgreSQL (pgvector)</div>
+      <div class="pipe-items" style="gap:6px">
+        <div class="pipe-item table">sessions<br><span style="font-size:10px">user_id, duration_sec, session_type, started_at</span></div>
+        <div class="pipe-item table">performance_records<br><span style="font-size:10px">session_id, module_id, score, questions_correct/total</span></div>
+        <div class="pipe-item table">question_attempts<br><span style="font-size:10px">question_id, selected_answer, is_correct, confidence</span></div>
+        <div class="pipe-item table">lm_mastery<br><span style="font-size:10px">user_id, module_id, mastery_level (0-100)</span></div>
+        <div class="pipe-item table">srs_queue<br><span style="font-size:10px">ease_factor, interval_days, next_review</span></div>
+        <div class="pipe-item table">progress_snapshots<br><span style="font-size:10px">snapshot_date, modules_done, avg_score, streak</span></div>
+        <div class="pipe-item table">weakness_log<br><span style="font-size:10px">weakness_type, severity (1-5), resolved</span></div>
+        <div class="pipe-item table">alerts<br><span style="font-size:10px">alert_type, title, body, is_read</span></div>
+        <div class="pipe-item table">plan_entries<br><span style="font-size:10px">module_id, scheduled_date, status</span></div>
+        <div class="pipe-item table">session_analyses<br><span style="font-size:10px">analysis_json (Claude AI cache)</span></div>
+      </div>
+      <div style="margin-top:12px">
+        <span style="font-size:11px;color:var(--muted);font-style:italic">+ Vue materialisee: v_user_daily_brief (streak, xp, today_min, cards_due)</span>
+      </div>
+    </div>
+
+    <div class="pipe-connector"><div class="flow-arrow"></div></div>
+
+    <!-- Layer 4: Serving -->
+    <div class="pipe-layer serve" data-label="API → Widgets">
+      <div class="pipe-title">Endpoints de lecture (GET → Frontend)</div>
+      <div class="pipe-items">
+        <div class="pipe-item api">GET /api/diagnostic<br><span style="font-size:10px">Dashboard complet (1 appel)</span></div>
+        <div class="pipe-item api">GET /api/kpis/topic-mastery<br><span style="font-size:10px">Topbar: progression globale</span></div>
+        <div class="pipe-item api">GET /api/kpis/streak<br><span style="font-size:10px">Topbar: streak jours</span></div>
+        <div class="pipe-item api">GET /api/kpis/today-stats<br><span style="font-size:10px">Topbar: minutes aujourd'hui</span></div>
+        <div class="pipe-item api">GET /api/kpis<br><span style="font-size:10px">Results: 20+ metriques</span></div>
+        <div class="pipe-item api">GET /api/kpis/badges<br><span style="font-size:10px">Achievements: badges</span></div>
+        <div class="pipe-item api">GET /api/progress/summary<br><span style="font-size:10px">Coverage %, exam score</span></div>
+        <div class="pipe-item api">GET /api/progress/heatmap<br><span style="font-size:10px">57 modules mastery grid</span></div>
+        <div class="pipe-item api">GET /api/performance/curve<br><span style="font-size:10px">Score trend 30 jours</span></div>
+        <div class="pipe-item api">GET /api/alerts<br><span style="font-size:10px">Alertes non lues</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 3 : CARTE DES WIDGETS                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="widgets" class="section">
+  <div class="section-title"><div class="num">3</div> Carte des widgets</div>
+  <p class="section-sub">Chaque widget de progression avec son composant, son API et ses tables source</p>
+
+  <!-- ── TOPBAR ── -->
+  <div class="group-header">
+    <div class="group-dot" style="background:var(--blue)"></div>
+    <div class="group-title">Topbar</div>
+    <div class="group-count">3 widgets — affichage permanent</div>
+  </div>
+  <div class="widget-grid">
+
+    <!-- 1. Global Progression -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(59,130,246,.15);color:var(--blue)">%</div>
+        <div>
+          <div class="widget-name">Global Progression</div>
+          <div class="widget-component">Topbar.tsx (inline)</div>
+        </div>
+      </div>
+      <div class="widget-desc">Barre de progression avec pourcentage vs objectif 70% (MPS). Moyenne ponderee par les poids CFA de chaque topic.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/kpis/topic-mastery?user_id={uid}</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">lm_mastery → GROUP BY topic → AVG(mastery_level)</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">SUM(topic_mastery * EXAM_WEIGHT) / SUM(EXAM_WEIGHT)</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-local">Cache</span><span class="widget-meta-value">→ localStorage: wingman_topic_progress</span></div>
+      </div>
+    </div>
+
+    <!-- 2. Streak -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(249,115,22,.15);color:var(--orange)">🔥</div>
+        <div>
+          <div class="widget-name">Streak</div>
+          <div class="widget-component">Topbar.tsx (inline)</div>
+        </div>
+      </div>
+      <div class="widget-desc">7 points colores (vert=actif, gris=inactif) + compteur de jours consecutifs d'etude.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/kpis/streak?user_id={uid}</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">sessions → SELECT DISTINCT DATE(started_at) → count consecutive days</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">Jours consecutifs avec au moins 1 session + 7 derniers jours activity map</span></div>
+      </div>
+    </div>
+
+    <!-- 3. Today Minutes -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(34,197,94,.15);color:var(--green)">⏱</div>
+        <div>
+          <div class="widget-name">Today Minutes</div>
+          <div class="widget-component">Topbar.tsx (inline)</div>
+        </div>
+      </div>
+      <div class="widget-desc">Minutes d'etude aujourd'hui. Somme de toutes les sessions du jour.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/kpis/today-stats?user_id={uid}</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">sessions → SUM(duration_sec) WHERE DATE(started_at) = TODAY / 60</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">total_minutes = SUM(duration_sec) / 60</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD ── -->
+  <div class="group-header">
+    <div class="group-dot" style="background:var(--purple)"></div>
+    <div class="group-title">Dashboard (Data page)</div>
+    <div class="group-count">12 widgets — source unique: GET /api/diagnostic</div>
+  </div>
+  <div class="widget-grid">
+
+    <!-- 4. KPICards -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(139,92,246,.15);color:var(--purple)">📊</div>
+        <div>
+          <div class="widget-name">KPI Cards (x4)</div>
+          <div class="widget-component">dashboard/KPICards.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">4 cartes animees: Global Score, Pass Rate (topics >=70%), Projected Score, At-Risk Topics (&lt;55%).</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → globalScore, passRate, projectedScore, atRiskTopics</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">lm_mastery + performance_records + sessions</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">globalScore = weighted AVG | passRate = topics>=70 / total | projected = linear extrapolation</span></div>
+      </div>
+    </div>
+
+    <!-- 5. TopicBars -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(59,130,246,.15);color:var(--blue)">📶</div>
+        <div>
+          <div class="widget-name">Topic Bars</div>
+          <div class="widget-component">dashboard/TopicBars.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Barres horizontales par topic CFA. Ligne MPS a 70%. Couleurs: vert (>=75), ambre (60-74), rouge (&lt;60).</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → topics[{ code, name, score, weight, status }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">lm_mastery → GROUP BY topic → AVG(mastery_level) per topic</span></div>
+      </div>
+    </div>
+
+    <!-- 6. HeatmapGrid -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(6,182,212,.15);color:var(--cyan)">🗺</div>
+        <div>
+          <div class="widget-name">Heatmap Grid</div>
+          <div class="widget-component">dashboard/HeatmapGrid.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Grille 10x6 (57 learning modules). Chaque cellule coloree par mastery: vert (>=75), ambre (60-74), orange (40-59), rouge (&lt;40).</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → lmMastery[{ code, topic, score }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">learning_modules LEFT JOIN lm_mastery → mastery_level per module</span></div>
+      </div>
+    </div>
+
+    <!-- 7. PassRateChart -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(34,197,94,.15);color:var(--green)">📈</div>
+        <div>
+          <div class="widget-name">Pass Rate Chart</div>
+          <div class="widget-component">dashboard/PassRateChart.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Bar chart des 5 derniers mock exams. Barres vertes (pass >=70%) ou rouges (fail).</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → mockScores[{ mock, score, passRate }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">sessions WHERE session_type='mock_exam' + performance_records → AVG(score)</span></div>
+      </div>
+    </div>
+
+    <!-- 8. ConsistencyChart -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(234,179,8,.15);color:var(--gold)">📉</div>
+        <div>
+          <div class="widget-name">Consistency Chart</div>
+          <div class="widget-component">dashboard/ConsistencyChart.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Barres horizontales de variabilite (sigma) par topic. sigma <= 6 = stable.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → consistency[{ topic, sigma }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">performance_records → STDDEV(score) GROUP BY topic</span></div>
+      </div>
+    </div>
+
+    <!-- 9. ProjectionChart -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(139,92,246,.15);color:var(--purple)">🎯</div>
+        <div>
+          <div class="widget-name">Projection Chart</div>
+          <div class="widget-component">dashboard/ProjectionChart.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Line chart: scores reels + projection pointillee jusqu'a l'examen. Ligne MPS a 70%.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → projection[{ label, score|null }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">Extrapolation lineaire des derniers scores reels vers exam_date</span></div>
+      </div>
+    </div>
+
+    <!-- 10. ProgressChart -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(59,130,246,.15);color:var(--blue)">📈</div>
+        <div>
+          <div class="widget-name">Progress Chart</div>
+          <div class="widget-component">dashboard/ProgressChart.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Line chart avec fill: tendance des 12 dernieres sessions + seuil MPS.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → sessions[{ session, score }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">performance_records ORDER BY created_at DESC LIMIT 12</span></div>
+      </div>
+    </div>
+
+    <!-- 11. RadarChart -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(236,72,153,.15);color:var(--pink)">🕸</div>
+        <div>
+          <div class="widget-name">Radar Chart</div>
+          <div class="widget-component">dashboard/RadarChart.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Spider chart 6 axes: globalScore, coverage, streak, projectedScore, srsAdherence, passRate. Actuel vs cible.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → 6 champs normalises 0-100</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">Chaque axe normalise: streak = min(streak*10, 100), coverage = modules_done/57*100, etc.</span></div>
+      </div>
+    </div>
+
+    <!-- 12. DailyPlan -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(34,197,94,.15);color:var(--green)">✅</div>
+        <div>
+          <div class="widget-name">Daily Plan</div>
+          <div class="widget-component">dashboard/DailyPlan.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Liste des taches du jour avec toggle completion. Modules planifies + type + duree estimee.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → dailyPlan[{ id, title, lm, minutes, type, completed }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">Action</span><span class="widget-meta-value">POST /api/plan/entry/{id}/complete (toggle)</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">plan_entries WHERE scheduled_date = TODAY</span></div>
+      </div>
+    </div>
+
+    <!-- 13. FatigueCurve -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(249,115,22,.15);color:var(--orange)">🧠</div>
+        <div>
+          <div class="widget-name">Fatigue Curve</div>
+          <div class="widget-component">dashboard/FatigueCurve.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Courbe de declin cognitif predit sur 12 heures. Aide a choisir le meilleur moment pour etudier.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → fatigueCurve: number[12]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">Modele predetermine base sur les patterns de session utilisateur</span></div>
+      </div>
+    </div>
+
+    <!-- 14. SRSAdherence -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(139,92,246,.15);color:var(--purple)">🔄</div>
+        <div>
+          <div class="widget-name">SRS Adherence</div>
+          <div class="widget-component">dashboard/SRSAdherenceChart.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Bar chart: adherence au systeme de repetition espacee par semaine (8 semaines).</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → srsWeeks[{ week, adherence }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">srs_queue: cards reviewed on time / cards due per week</span></div>
+      </div>
+    </div>
+
+    <!-- 15. RepeatErrors -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(239,68,68,.15);color:var(--red)">⚠</div>
+        <div>
+          <div class="widget-name">Repeat Errors</div>
+          <div class="widget-component">dashboard/RepeatErrorChart.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Barres horizontales: taux d'erreurs recurrentes par topic. Questions ratees 2+ fois.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/diagnostic → repeatErrors[{ topic, rate }]</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">question_attempts WHERE is_correct=false GROUP BY question_id HAVING COUNT>=2</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RESULTS PAGE ── -->
+  <div class="group-header">
+    <div class="group-dot" style="background:var(--green)"></div>
+    <div class="group-title">Results Page</div>
+    <div class="group-count">3 onglets — endpoints dedies</div>
+  </div>
+  <div class="widget-grid">
+
+    <!-- 16. Diagnostic Tab -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(139,92,246,.15);color:var(--purple)">🔬</div>
+        <div>
+          <div class="widget-name">Onglet Diagnostic</div>
+          <div class="widget-component">app/results/page.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">2 anneaux (Mastery Score, Readiness Score) + 4 KPIs + 4 metriques + zones faibles/fortes + indicateurs de risque.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/kpis?user_id={uid}</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">sessions + performance_records + question_attempts + lm_mastery + srs_queue</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">mastery_score = AVG(lm_mastery) | readiness = 0.35*mastery + 0.25*recent + 0.15*retention + 0.15*coverage + 0.10*duration | consistency = 100 - STDDEV | retention = SRS success rate | confidence_calibration = 100 - |avg_confidence - avg_score|</span></div>
+      </div>
+    </div>
+
+    <!-- 17. Performance Tab -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(59,130,246,.15);color:var(--blue)">📈</div>
+        <div>
+          <div class="widget-name">Onglet Performance</div>
+          <div class="widget-component">app/results/page.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Courbe de scores sur 30 jours + tableau detail par Learning Module (score, tentatives, temps).</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/performance/curve?user_id={uid}&days=30<br>GET /api/performance/scores?user_id={uid}</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">performance_records GROUP BY DATE → AVG(score) per day<br>performance_records GROUP BY module_id → AVG(score), COUNT(*)</span></div>
+      </div>
+    </div>
+
+    <!-- 18. Progress Tab -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(6,182,212,.15);color:var(--cyan)">🗺</div>
+        <div>
+          <div class="widget-name">Onglet Progress</div>
+          <div class="widget-component">app/results/page.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Coverage %, heures totales, score estime, date readiness + heatmap mastery + alertes.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/progress/summary?user_id={uid}<br>GET /api/progress/heatmap?user_id={uid}<br>GET /api/alerts?user_id={uid}</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">coverage = DISTINCT modules / 57 | total_hours = SUM(duration_sec)/3600 | exam_score = AVG(mock scores) | heatmap = lm_mastery per module</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── AUTRES ── -->
+  <div class="group-header">
+    <div class="group-dot" style="background:var(--orange)"></div>
+    <div class="group-title">Autres widgets</div>
+    <div class="group-count">3 widgets independants</div>
+  </div>
+  <div class="widget-grid">
+
+    <!-- 19. Achievements -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(234,179,8,.15);color:var(--gold)">🏆</div>
+        <div>
+          <div class="widget-name">Achievements / Badges</div>
+          <div class="widget-component">app/achievements/page.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Grille de 20+ badges par categorie (Milestones, Streaks, Mastery, Consistency, Hidden). Animations par rarete.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/kpis/badges?user_id={uid}</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">sessions + performance_records + user_profiles → 20+ conditions evaluees dynamiquement</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">Ex: "First Blood" = 1 session | "Marathon" = 5h en 1 jour | "Perfect" = 100% quiz | "Streak 30" = 30 jours consecutifs</span></div>
+      </div>
+    </div>
+
+    <!-- 20. Pomodoro -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(239,68,68,.15);color:var(--red)">🍅</div>
+        <div>
+          <div class="widget-name">Pomodoro Timer</div>
+          <div class="widget-component">Topbar.tsx (inline)</div>
+        </div>
+      </div>
+      <div class="widget-desc">Timer 45min travail / 15min pause. Compteur de pomodoros du jour + temps total focus.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-local">Local</span><span class="widget-meta-value">localStorage: wingman_pomodoro</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">100% client-side. Reset quotidien. Pas de sync API.</span></div>
+      </div>
+    </div>
+
+    <!-- 21. Alerts Feed -->
+    <div class="widget-card">
+      <div class="widget-header">
+        <div class="widget-icon" style="background:rgba(239,68,68,.15);color:var(--red)">🔔</div>
+        <div>
+          <div class="widget-name">Alerts Feed</div>
+          <div class="widget-component">dashboard/AlertsFeed.tsx</div>
+        </div>
+      </div>
+      <div class="widget-desc">Cartes d'alertes dismissables: streak_risk, low_mastery, behind_schedule, review_due, milestone.</div>
+      <div class="widget-meta">
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">API</span><span class="widget-meta-value">GET /api/alerts?user_id={uid}</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-api">Action</span><span class="widget-meta-value">POST /api/alerts/{id}/read</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-db">DB</span><span class="widget-meta-value">alerts WHERE is_read=false ORDER BY created_at DESC</span></div>
+        <div class="widget-meta-row"><span class="widget-meta-label label-calc">Calcul</span><span class="widget-meta-value">Generees par: weakness_detector (score&lt;60), scheduler (behind plan, streak risk), mastery.py (regression)</span></div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECTION 4 : FORMULES DE CALCUL                      -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section id="formulas" class="section">
+  <div class="section-title"><div class="num">4</div> Formules de calcul</div>
+  <p class="section-sub">Definissez la logique de chaque metrique. Colonne gauche = implementation actuelle. Colonne droite = votre nouvelle formule.</p>
+
+  <div class="formula-grid">
+
+    <!-- ─── 1. LM Mastery (par module) ─── -->
+    <div class="formula-card" data-id="lm-mastery">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(139,92,246,.15);color:var(--purple)">M</div>
+        <div class="formula-title">LM Mastery (mastery par module)</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// mastery.py → update_mastery()</span>
+<span class="var">scores</span> = <span class="fn">SELECT</span> score <span class="kw">FROM</span> performance_records
+         <span class="kw">WHERE</span> user_id AND module_id
+         <span class="kw">ORDER BY</span> created_at <span class="kw">DESC LIMIT</span> <span class="num">5</span>
+
+<span class="var">mastery_level</span> = <span class="fn">AVG</span>(<span class="var">scores</span>)
+
+<span class="cmt">// UPSERT dans lm_mastery</span>
+<span class="cmt">// Niveaux: strong (>=80), adequate (>=60), weak (<60)</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Decrivez votre formule ici...&#10;&#10;Ex: Prendre en compte le bloom_level de chaque LOS,&#10;ponderer par la difficulte des questions,&#10;integrer un facteur d'oubli temporel..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-notes">
+          <strong>Probleme identifie :</strong> AVG des 5 derniers scores ne tient pas compte de la granularite LOS, du niveau Bloom, ni du temps ecoule depuis la derniere tentative. Un etudiant qui rate 5 fois puis reussit 5 fois aura 100% de mastery.
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">performance_records</span>
+          <span class="formula-table-tag">lm_mastery</span>
+          <span class="formula-table-tag">learning_outcomes</span>
+          <span class="formula-table-tag">question_attempts</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 2. Topic Mastery ─── -->
+    <div class="formula-card" data-id="topic-mastery">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(59,130,246,.15);color:var(--blue)">T</div>
+        <div class="formula-title">Topic Mastery (mastery par topic CFA)</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// kpis.py → GET /api/kpis/topic-mastery</span>
+<span class="var">topic_mastery</span> = <span class="fn">SELECT</span> t.code,
+    <span class="fn">AVG</span>(lm.mastery_level) <span class="kw">AS</span> mastery
+<span class="kw">FROM</span> lm_mastery lm
+<span class="kw">JOIN</span> learning_modules m <span class="kw">ON</span> lm.module_id = m.id
+<span class="kw">JOIN</span> topics t <span class="kw">ON</span> m.topic_id = t.id
+<span class="kw">WHERE</span> lm.user_id = :uid
+<span class="kw">GROUP BY</span> t.code
+
+<span class="cmt">// Tous les modules ont le meme poids dans le topic</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Ponderer par nombre de LOS par module,&#10;ou par difficulte moyenne des questions,&#10;ou par poids relatif dans le curriculum..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-notes">
+          <strong>Probleme identifie :</strong> AVG simple de tous les modules d'un topic. Un module avec 2 LOS pese autant qu'un module avec 15 LOS. Pas de ponderation par importance ou nombre de questions.
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">lm_mastery</span>
+          <span class="formula-table-tag">learning_modules</span>
+          <span class="formula-table-tag">topics</span>
+          <span class="formula-table-tag">learning_outcomes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 3. Global Progression ─── -->
+    <div class="formula-card" data-id="global-progression">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(34,197,94,.15);color:var(--green)">G</div>
+        <div class="formula-title">Global Progression (barre topbar)</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// Topbar.tsx → calcul frontend</span>
+<span class="var">EXAM_WEIGHTS</span> = {
+  ETH: <span class="num">15</span>, QM: <span class="num">10</span>, ECO: <span class="num">10</span>,
+  FSA: <span class="num">13</span>, CORP: <span class="num">8</span>, EQU: <span class="num">11</span>,
+  FI: <span class="num">11</span>, DER: <span class="num">6</span>, ALT: <span class="num">7</span>, PM: <span class="num">9</span>
+}
+
+<span class="var">global</span> = <span class="fn">SUM</span>(<span class="var">topic_mastery[i]</span> * <span class="var">weight[i]</span>)
+         / <span class="fn">SUM</span>(<span class="var">weight[i]</span>)
+
+<span class="cmt">// Objectif: 70% (MPS CFA)</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Integrer le coverage (% modules etudies),&#10;ou un facteur de confiance (ecart-type),&#10;ou un decay temporel..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-notes">
+          <strong>Probleme identifie :</strong> Depend directement de Topic Mastery (qui depend de LM Mastery). Si la base est fausse, tout est faux. De plus, un topic non etudie (mastery=0) tire la moyenne vers le bas de facon brutale.
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">lm_mastery</span>
+          <span class="formula-table-tag">topics.weight_pct</span>
+          <span class="formula-table-tag">EXAM_WEIGHTS (constante frontend)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 4. SRS (Repetition espacee) ─── -->
+    <div class="formula-card" data-id="srs">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(249,115,22,.15);color:var(--orange)">S</div>
+        <div class="formula-title">SRS — Repetition espacee</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// srs.py → update_srs()</span>
+<span class="kw">if</span> <span class="var">score</span> >= <span class="num">80</span>:  <span class="cmt">// Succes</span>
+  <span class="var">ease</span> = <span class="fn">min</span>(<span class="num">3.0</span>, <span class="var">ease</span> + <span class="num">0.1</span>)
+  <span class="var">interval</span> *= <span class="var">ease</span>
+  <span class="var">next_review</span> = now + <span class="var">interval</span> days
+
+<span class="kw">elif</span> <span class="var">score</span> >= <span class="num">60</span>:  <span class="cmt">// Adequat</span>
+  <span class="var">next_review</span> = now + <span class="var">interval</span> <span class="cmt">// pas de changement</span>
+
+<span class="kw">else</span>:  <span class="cmt">// Echec (< 60)</span>
+  <span class="var">ease</span> = <span class="fn">max</span>(<span class="num">1.3</span>, <span class="var">ease</span> - <span class="num">0.2</span>)
+  <span class="var">interval</span> = <span class="num">1</span>  <span class="cmt">// reset a 1 jour</span>
+  <span class="var">next_review</span> = now + <span class="num">1</span> day
+
+<span class="cmt">// ease_factor: 1.3 → 3.0</span>
+<span class="cmt">// Inspire de SM-2 (SuperMemo)</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Ajouter un facteur de temps de reponse,&#10;distinguer les types d'erreur (conceptuel vs calcul),&#10;ajuster les seuils 60/80..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-notes">
+          <strong>Note :</strong> L'algorithme SM-2 est eprouve mais les seuils (60/80) sont arbitraires. Le score utilise est celui du module entier, pas de la carte individuelle.
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">srs_queue</span>
+          <span class="formula-table-tag">performance_records.score</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 5. Streak ─── -->
+    <div class="formula-card" data-id="streak">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(249,115,22,.15);color:var(--orange)">🔥</div>
+        <div class="formula-title">Streak (jours consecutifs)</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// kpis.py → GET /api/kpis/streak</span>
+<span class="var">dates</span> = <span class="fn">SELECT DISTINCT</span> <span class="fn">DATE</span>(started_at)
+         <span class="kw">FROM</span> sessions
+         <span class="kw">WHERE</span> user_id = :uid
+         <span class="kw">ORDER BY</span> date <span class="kw">DESC</span>
+
+<span class="var">streak</span> = <span class="num">0</span>
+<span class="kw">for</span> <span class="var">d</span> <span class="kw">in</span> <span class="var">dates</span>:
+  <span class="kw">if</span> <span class="var">d</span> == today - <span class="var">streak</span> days:
+    <span class="var">streak</span> += <span class="num">1</span>
+  <span class="kw">else</span>: <span class="kw">break</span>
+
+<span class="cmt">// 1 session = 1 jour valide (meme 1 minute)</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Minimum 15 min d'etude pour compter,&#10;ou exiger au moins 1 quiz complete,&#10;ou integrer un streak 'qualite' (score > 50%)..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">sessions</span>
+          <span class="formula-table-tag">user_profiles.streak_current</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 6. Readiness Score ─── -->
+    <div class="formula-card" data-id="readiness">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(236,72,153,.15);color:var(--pink)">R</div>
+        <div class="formula-title">Readiness Score (pret pour l'examen)</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// kpis.py → readiness_score</span>
+<span class="var">readiness</span> =
+  <span class="num">0.35</span> * <span class="var">mastery_score</span>     <span class="cmt">// AVG(lm_mastery)</span>
++ <span class="num">0.25</span> * <span class="var">recent_avg_score</span>  <span class="cmt">// AVG des 10 derniers quiz</span>
++ <span class="num">0.15</span> * <span class="var">retention_score</span>   <span class="cmt">// SRS success rate</span>
++ <span class="num">0.15</span> * <span class="var">coverage_score</span>    <span class="cmt">// modules couverts / 57</span>
++ <span class="num">0.10</span> * <span class="var">duration_score</span>    <span class="cmt">// heures totales normalisees</span>
+
+<span class="cmt">// Poids: 35% mastery + 25% recent + 15% retention</span>
+<span class="cmt">//        + 15% coverage + 10% volume</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Ajouter un facteur mock exam score,&#10;integrer le nombre de jours restants,&#10;ponderer par les topics les plus faibles..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-notes">
+          <strong>Probleme identifie :</strong> Les poids (35/25/15/15/10) sont arbitraires. duration_score recompense le volume brut (un etudiant qui passe 100h sans progresser aura un bonus). coverage ne distingue pas "vu 1 fois" de "maitrise".
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">lm_mastery</span>
+          <span class="formula-table-tag">performance_records</span>
+          <span class="formula-table-tag">srs_queue</span>
+          <span class="formula-table-tag">sessions</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 7. Projected Score ─── -->
+    <div class="formula-card" data-id="projected-score">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(6,182,212,.15);color:var(--cyan)">P</div>
+        <div class="formula-title">Projected Exam Score</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// progress.py → GET /api/progress/summary</span>
+<span class="kw">if</span> mock_scores exist:
+  <span class="var">estimated_exam</span> = <span class="fn">AVG</span>(mock_scores)
+<span class="kw">else</span>:
+  <span class="var">estimated_exam</span> = <span class="var">avg_score</span> <span class="cmt">// tous les quiz</span>
+
+<span class="cmt">// Projection lineaire simple</span>
+<span class="cmt">// Pas de facteur temps restant</span>
+<span class="cmt">// Pas de correction par difficulte</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Regression lineaire sur les 30 derniers jours,&#10;extrapoler jusqu'a exam_date,&#10;corriger par la difficulte relative des questions..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">performance_records</span>
+          <span class="formula-table-tag">sessions (mock_exam)</span>
+          <span class="formula-table-tag">user_profiles.exam_date</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 8. Weakness Detection ─── -->
+    <div class="formula-card" data-id="weakness">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(239,68,68,.15);color:var(--red)">⚠</div>
+        <div class="formula-title">Weakness Detection (detection faiblesses)</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// weakness_detector.py</span>
+<span class="kw">if</span> <span class="var">score</span> >= <span class="num">60</span>: <span class="kw">return</span>  <span class="cmt">// rien</span>
+
+<span class="cmt">// Classification</span>
+<span class="var">type</span> = <span class="str">"conceptual"</span> <span class="kw">if</span> score < <span class="num">40</span>
+        <span class="kw">else</span> <span class="str">"calculation"</span>
+
+<span class="cmt">// Severite</span>
+<span class="var">severity</span> = <span class="num">5</span> <span class="kw">if</span> score < <span class="num">30</span>
+           <span class="kw">else</span> <span class="num">4</span> <span class="kw">if</span> score < <span class="num">40</span>
+           <span class="kw">else</span> <span class="num">3</span>
+
+<span class="cmt">// Regression: prev mastery > 70 && new < 55</span>
+<span class="kw">if</span> <span class="var">prev_mastery</span> > <span class="num">70</span> <span class="kw">and</span> <span class="var">score</span> < <span class="num">55</span>:
+  <span class="fn">INSERT</span> alert <span class="str">"Regression"</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Analyser par LOS et pas par module,&#10;classifier par Bloom level,&#10;tracker les erreurs repetees sur la meme question..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-notes">
+          <strong>Probleme identifie :</strong> Classification binaire (conceptual vs calculation) basee uniquement sur le seuil de 40%. Pas d'analyse des reponses individuelles. Un etudiant qui rate toujours les memes questions n'est pas detecte differemment.
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">weakness_log</span>
+          <span class="formula-table-tag">alerts</span>
+          <span class="formula-table-tag">performance_records</span>
+          <span class="formula-table-tag">question_attempts</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 9. Pass Rate ─── -->
+    <div class="formula-card" data-id="pass-rate">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(34,197,94,.15);color:var(--green)">✓</div>
+        <div class="formula-title">Pass Rate (taux de reussite par topic)</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// diagnostic.py</span>
+<span class="var">pass_rate</span> = <span class="fn">COUNT</span>(topics <span class="kw">WHERE</span> mastery >= <span class="num">70</span>)
+            / <span class="fn">COUNT</span>(all topics)
+            * <span class="num">100</span>
+
+<span class="cmt">// Seuil: 70% = MPS CFA</span>
+<span class="cmt">// Binaire: un topic est "pass" ou "fail"</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Ponderer par le poids CFA de chaque topic,&#10;ou utiliser un seuil progressif (50/60/70),&#10;ou calculer la probabilite de pass..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">lm_mastery</span>
+          <span class="formula-table-tag">topics</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 10. Confidence Calibration ─── -->
+    <div class="formula-card" data-id="confidence">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(234,179,8,.15);color:var(--gold)">🎯</div>
+        <div class="formula-title">Confidence Calibration</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// kpis.py</span>
+<span class="var">calibration</span> = <span class="num">100</span> - <span class="fn">abs</span>(
+  <span class="fn">AVG</span>(<span class="var">confidence</span>) - <span class="fn">AVG</span>(<span class="var">quiz_score</span>)
+)
+
+<span class="cmt">// confidence: 1-5 (question_attempts)</span>
+<span class="cmt">// Normalise sur 100</span>
+<span class="cmt">// 100 = parfaitement calibre</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Calculer par topic et non globalement,&#10;distinguer sur-confiance vs sous-confiance,&#10;ponderer les questions recentes plus fort..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">question_attempts.confidence</span>
+          <span class="formula-table-tag">performance_records.score</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 11. Dropout Risk ─── -->
+    <div class="formula-card" data-id="dropout">
+      <div class="formula-head" onclick="toggleFormula(this)">
+        <svg class="formula-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        <div class="formula-icon" style="background:rgba(239,68,68,.15);color:var(--red)">📉</div>
+        <div class="formula-title">Dropout Risk (risque d'abandon)</div>
+        <span class="formula-status status-current">Actuel</span>
+      </div>
+      <div class="formula-body">
+        <div class="formula-row">
+          <div class="formula-box">
+            <div class="formula-box-title current">Implementation actuelle</div>
+            <div class="formula-code"><span class="cmt">// kpis.py</span>
+<span class="var">days_since</span> = now - last_session_date
+
+<span class="kw">if</span> <span class="var">days_since</span> >= <span class="num">7</span>:
+  <span class="var">risk</span> = <span class="num">80</span>
+<span class="kw">elif</span> <span class="var">days_since</span> < <span class="num">3</span>:
+  <span class="var">risk</span> = <span class="num">20</span>
+<span class="kw">else</span>:
+  <span class="var">risk</span> = <span class="num">55</span>
+
+<span class="cmt">// 3 paliers fixes, pas de gradation</span></div>
+          </div>
+          <div class="formula-box">
+            <div class="formula-box-title proposed">Nouvelle formule proposee</div>
+            <textarea class="formula-input" placeholder="Ex: Courbe continue basee sur l'historique,&#10;integrer la tendance (accelere ou decelere),&#10;facteur de streak brise..." oninput="markChanged(this)"></textarea>
+          </div>
+        </div>
+        <div class="formula-tables">
+          <span class="formula-table-tag">sessions.started_at</span>
+          <span class="formula-table-tag">user_profiles.streak_current</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /formula-grid -->
+</section>
+
+<!-- SAVE BAR -->
+<div class="save-bar" id="saveBar">
+  <div class="count"><span id="changeCount">0</span> formule(s) modifiee(s)</div>
+  <button class="save-btn" onclick="exportFormulas()">Exporter les formules (JSON)</button>
+</div>
+
+</div><!-- /container -->
+
+<!-- SCRIPTS -->
+<script>
+// Nav scroll highlight
+const links = document.querySelectorAll('.topnav a');
+const sections = document.querySelectorAll('.section');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 100) current = s.id;
+  });
+  links.forEach(l => {
+    l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+  });
+});
+
+// Formula accordion
+function toggleFormula(head) {
+  const card = head.closest('.formula-card');
+  card.classList.toggle('open');
+}
+
+// Track changes
+let changedCount = 0;
+function markChanged(textarea) {
+  const card = textarea.closest('.formula-card');
+  const status = card.querySelector('.formula-status');
+  if (textarea.value.trim()) {
+    if (!card.classList.contains('changed')) {
+      card.classList.add('changed');
+      status.textContent = 'Modifie';
+      status.className = 'formula-status status-proposed';
+      changedCount++;
+    }
+  } else {
+    if (card.classList.contains('changed')) {
+      card.classList.remove('changed');
+      status.textContent = 'Actuel';
+      status.className = 'formula-status status-current';
+      changedCount--;
+    }
+  }
+  document.getElementById('changeCount').textContent = changedCount;
+  document.getElementById('saveBar').classList.toggle('visible', changedCount > 0);
+}
+
+// Export formulas as JSON
+function exportFormulas() {
+  const formulas = {};
+  document.querySelectorAll('.formula-card').forEach(card => {
+    const id = card.dataset.id;
+    const input = card.querySelector('.formula-input');
+    if (input && input.value.trim()) {
+      formulas[id] = {
+        title: card.querySelector('.formula-title').textContent,
+        proposed: input.value.trim(),
+        tables: [...card.querySelectorAll('.formula-table-tag')].map(t => t.textContent)
+      };
+    }
+  });
+  const json = JSON.stringify(formulas, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'wingman-formulas-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Load saved formulas from localStorage
+function loadSaved() {
+  try {
+    const saved = localStorage.getItem('wingman_formulas');
+    if (!saved) return;
+    const data = JSON.parse(saved);
+    Object.entries(data).forEach(([id, val]) => {
+      const card = document.querySelector(`[data-id="${id}"]`);
+      if (card) {
+        const input = card.querySelector('.formula-input');
+        if (input && val.proposed) {
+          input.value = val.proposed;
+          markChanged(input);
+        }
+      }
+    });
+  } catch {}
+}
+
+// Auto-save to localStorage on input
+document.addEventListener('input', (e) => {
+  if (e.target.classList.contains('formula-input')) {
+    const formulas = {};
+    document.querySelectorAll('.formula-card').forEach(card => {
+      const input = card.querySelector('.formula-input');
+      if (input && input.value.trim()) {
+        formulas[card.dataset.id] = { proposed: input.value.trim() };
+      }
+    });
+    localStorage.setItem('wingman_formulas', JSON.stringify(formulas));
+  }
+});
+
+loadSaved();
+</script>
+
+</body>
+</html>

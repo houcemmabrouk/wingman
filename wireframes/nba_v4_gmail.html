@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Wingman · NBA v4 (Gmail-style)</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0b1020;
+    color: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    height: 100vh; overflow: hidden;
+  }
+
+  /* ── Top bar ─────────────────────────── */
+  .topbar {
+    height: 56px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center;
+    padding: 0 18px; gap: 18px;
+  }
+  .brand { font-size: 16px; font-weight: 800; color: #fff; }
+  .brand-sub { font-size: 11px; color: #94a3b8; margin-left: 6px; }
+  .search {
+    flex: 1; max-width: 720px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    height: 36px; padding: 0 16px;
+    display: flex; align-items: center; gap: 10px;
+    color: #94a3b8; font-size: 13px;
+  }
+  .gps-mini {
+    margin-left: auto;
+    display: flex; gap: 8px; align-items: center;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.20);
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 11px; color: #cbd5e1;
+  }
+  .gps-mini b { color: #4ade80; font-weight: 800; }
+
+  /* ── 3-pane layout ────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 360px 1fr;
+    height: calc(100vh - 56px);
+  }
+  @media (max-width: 980px) { .layout { grid-template-columns: 200px 1fr; } .pane-detail { display: none; } }
+
+  /* ── Sidebar ─────────────────────────── */
+  .sidebar {
+    border-right: 1px solid rgba(255,255,255,0.06);
+    padding: 14px 10px;
+    overflow-y: auto;
+  }
+  .compose {
+    background: linear-gradient(135deg, #a855f7, #38bdf8);
+    color: white; border: none; outline: none;
+    width: 100%; padding: 10px 14px;
+    border-radius: 10px;
+    font: inherit; font-weight: 700; font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px; justify-content: center;
+  }
+  .nav { display: flex; flex-direction: column; gap: 1px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    color: #cbd5e1; font-size: 13px;
+    transition: background 100ms;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); }
+  .nav-item.active {
+    background: rgba(168,85,247,0.18);
+    color: #fff; font-weight: 700;
+  }
+  .nav-item .icn { width: 18px; text-align: center; }
+  .nav-item .label { flex: 1; }
+  .nav-item .count {
+    font-size: 11px; color: #94a3b8;
+    background: rgba(0,0,0,0.30); padding: 1px 6px; border-radius: 999px;
+    min-width: 18px; text-align: center;
+  }
+  .nav-item.active .count { color: #c084fc; background: rgba(168,85,247,0.30); }
+
+  .nav-section-label {
+    font-size: 10px; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.18em;
+    padding: 14px 12px 6px;
+  }
+
+  .sidebar-coach {
+    margin-top: 18px;
+    background: linear-gradient(135deg, rgba(34,197,94,0.06), rgba(34,197,94,0.02));
+    border: 1px solid rgba(34,197,94,0.18);
+    border-radius: 12px; padding: 12px;
+  }
+  .sidebar-coach h4 { margin: 0 0 4px; font-size: 11px; color: #4ade80; letter-spacing: 0.10em; text-transform: uppercase; }
+  .sidebar-coach p { margin: 0 0 8px; font-size: 11px; color: #cbd5e1; }
+  .sidebar-coach .ns {
+    font-size: 11px; color: #cbd5e1;
+    padding: 4px 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .sidebar-coach .ns:first-of-type { border-top: none; }
+  .sidebar-coach .ns b { color: #fff; }
+
+  /* ── List pane ───────────────────────── */
+  .pane-list {
+    border-right: 1px solid rgba(255,255,255,0.06);
+    overflow-y: auto;
+  }
+  .list-toolbar {
+    height: 38px; padding: 0 14px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 11px; color: #94a3b8;
+  }
+  .list-toolbar .count { color: #fff; font-weight: 700; }
+
+  .row {
+    display: grid; grid-template-columns: 22px 1fr;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: background 80ms;
+  }
+  .row:hover { background: rgba(255,255,255,0.03); }
+  .row.unread { background: rgba(168,85,247,0.04); border-left: 3px solid #a855f7; padding-left: 11px; }
+  .row.selected { background: rgba(168,85,247,0.12); }
+  .row.unread .from, .row.unread .subject { color: #fff; font-weight: 700; }
+
+  .row .icn {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; margin-top: 2px;
+  }
+  .row .body { min-width: 0; }
+  .row .row1 {
+    display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px;
+  }
+  .row .from { font-size: 12px; color: #cbd5e1; font-weight: 600; flex: 1; }
+  .row .time { font-size: 10px; color: #64748b; flex-shrink: 0; }
+  .row .subject {
+    font-size: 13px; color: #e5e7eb;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .row .preview {
+    font-size: 11px; color: #94a3b8;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-top: 1px;
+  }
+  .row .lab {
+    display: inline-block; font-size: 9px; padding: 1px 6px;
+    border-radius: 999px; margin-right: 6px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    vertical-align: middle;
+  }
+  .lab.action  { background: rgba(168,85,247,0.16); color: #c084fc; }
+  .lab.alert   { background: rgba(249,115,22,0.16); color: #fb923c; }
+  .lab.dispute { background: rgba(34,197,94,0.16); color: #4ade80; }
+  .lab.coach   { background: rgba(56,189,248,0.16); color: #38bdf8; }
+
+  /* ── Detail pane ─────────────────────── */
+  .pane-detail { overflow-y: auto; }
+  .detail {
+    padding: 22px 28px;
+    max-width: 760px;
+  }
+  .detail h1 { margin: 0 0 4px; font-size: 18px; color: #fff; font-weight: 700; }
+  .detail .meta-line {
+    font-size: 12px; color: #94a3b8;
+    margin-bottom: 14px;
+  }
+  .actions {
+    display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .btn {
+    background: rgba(255,255,255,0.06);
+    color: #fff; border: 1px solid rgba(255,255,255,0.10);
+    padding: 8px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+  }
+  .btn.primary { background: #a855f7; border-color: #a855f7; }
+
+  /* Coach thread style */
+  .thread { display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 75%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
+  .msg.coach {
+    background: rgba(56,189,248,0.10); color: #e5e7eb;
+    border: 1px solid rgba(56,189,248,0.18);
+    align-self: flex-start; border-bottom-left-radius: 4px;
+  }
+  .msg.me {
+    background: #a855f7; color: white;
+    align-self: flex-end; border-bottom-right-radius: 4px;
+  }
+  .msg-time { font-size: 10px; color: #64748b; margin-top: -6px; }
+  .msg.coach + .msg-time { align-self: flex-start; }
+  .msg.me + .msg-time { align-self: flex-end; }
+
+  .compose-input {
+    margin-top: 16px; display: flex; gap: 8px;
+  }
+  .compose-input input {
+    flex: 1; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #fff; padding: 10px 14px; border-radius: 10px;
+    font: inherit; outline: none;
+  }
+  .compose-input input:focus { border-color: rgba(168,85,247,0.50); }
+  .compose-input button {
+    background: #a855f7; color: white; border: none;
+    padding: 10px 18px; border-radius: 10px;
+    font-weight: 700; cursor: pointer; font-size: 13px;
+  }
+
+  /* Action card */
+  .action-card {
+    background: rgba(168,85,247,0.06);
+    border: 1px solid rgba(168,85,247,0.30);
+    border-radius: 12px; padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .action-card .impact { font-size: 13px; color: #cbd5e1; line-height: 1.7; }
+  .action-card b { color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <div class="brand">Wingman <span class="brand-sub">· Next Best Action</span></div>
+  <div class="search">🔎 Search inbox / coach / actions…</div>
+  <div class="gps-mini">
+    Schedule <b>+46%</b> · Velocity <b>+2.2%/sem</b> · Streak <b>🔥 12</b>
+  </div>
+</div>
+
+<!-- ═══ 3-PANE LAYOUT ═══ -->
+<div class="layout">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <button class="compose">＋ Compose to coach</button>
+
+    <div class="nav">
+      <div class="nav-item active"><span class="icn">📥</span><span class="label">Inbox</span><span class="count">8</span></div>
+      <div class="nav-item"><span class="icn">⭐</span><span class="label">Starred</span><span class="count">2</span></div>
+      <div class="nav-item"><span class="icn">⏰</span><span class="label">Snoozed</span><span class="count">1</span></div>
+      <div class="nav-item"><span class="icn">📤</span><span class="label">Sent</span></div>
+      <div class="nav-item"><span class="icn">🗄️</span><span class="label">Archive</span></div>
+    </div>
+
+    <div class="nav-section-label">Catégories</div>
+    <div class="nav">
+      <div class="nav-item"><span class="icn">⚡</span><span class="label">Actions</span><span class="count">3</span></div>
+      <div class="nav-item"><span class="icn">🔔</span><span class="label">Alerts</span><span class="count">2</span></div>
+      <div class="nav-item"><span class="icn">⚖</span><span class="label">Disputes</span><span class="count">1</span></div>
+      <div class="nav-item"><span class="icn">💬</span><span class="label">Coach chat</span><span class="count">2</span></div>
+      <div class="nav-item"><span class="icn">📊</span><span class="label">Instant Report</span></div>
+    </div>
+
+    <div class="sidebar-coach">
+      <h4>🐇 Never Surrender</h4>
+      <p>Toujours dispo si pas d'énergie</p>
+      <div class="ns"><b>Tier 1</b> · Audio · 5 min</div>
+      <div class="ns"><b>Tier 2</b> · Reading + LOS · 12 min ✓</div>
+      <div class="ns"><b>Tier 3</b> · + quiz easy · 18 min</div>
+    </div>
+  </aside>
+
+  <!-- ─── List pane ─── -->
+  <section class="pane-list">
+    <div class="list-toolbar">
+      <span class="count">8 items</span>
+      <span>·</span>
+      <span>Filter: All</span>
+      <span style="margin-left: auto;">Refresh</span>
+    </div>
+
+    <div class="row unread selected">
+      <div class="icn">💬</div>
+      <div class="body">
+        <div class="row1"><span class="from">Wingman Coach</span><span class="time">12 min</span></div>
+        <div class="subject"><span class="lab coach">Coach</span>On fait une session courte ETH-01 ce soir ?</div>
+        <div class="preview">Tu es à +46% du schedule 🎯 — bon rythme. Si tu veux…</div>
+      </div>
+    </div>
+
+    <div class="row unread">
+      <div class="icn">🎯</div>
+      <div class="body">
+        <div class="row1"><span class="from">Daily Sharpener</span><span class="time">prêt</span></div>
+        <div class="subject"><span class="lab action">Action</span>Drill ETH-01 · 12 questions hard</div>
+        <div class="preview">Mastery 65% → ~80% · gardes ton +2j d'avance · ~18 min</div>
+      </div>
+    </div>
+
+    <div class="row unread">
+      <div class="icn">🔔</div>
+      <div class="body">
+        <div class="row1"><span class="from">Streak alert</span><span class="time">2h</span></div>
+        <div class="subject"><span class="lab alert">Alert</span>Streak en risque — 36h sans session</div>
+        <div class="preview">Une mini-action de 15 min protège ta série actuelle.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="icn">⚖</div>
+      <div class="body">
+        <div class="row1"><span class="from">Dispute Arbiter</span><span class="time">2h</span></div>
+        <div class="subject"><span class="lab dispute">Dispute</span>Q3409 (FSA-12) — résolu en ta faveur · +5 XP</div>
+        <div class="preview">L'arbiter Claude a confirmé que la réponse marquée était fausse.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="icn">💬</div>
+      <div class="body">
+        <div class="row1"><span class="from">Wingman Coach</span><span class="time">hier</span></div>
+        <div class="subject"><span class="lab coach">Coach</span>Bon job sur ETH-02 hier — tu butes sur Standards III</div>
+        <div class="preview">Mini-cours dispo quand tu veux. C'est 5 min lecture + 3 questions.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="icn">🧭</div>
+      <div class="body">
+        <div class="row1"><span class="from">Marco Polo Challenge</span><span class="time">prêt</span></div>
+        <div class="subject"><span class="lab action">Action</span>Explore DER-09 (jamais touché)</div>
+        <div class="preview">5 questions intro + LOS sheet · ~12 min · effort faible</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="icn">⚠️</div>
+      <div class="body">
+        <div class="row1"><span class="from">Weakness detector</span><span class="time">4h</span></div>
+        <div class="subject"><span class="lab alert">Alert</span>Nouvelle weakness flaggée · FI-11-LO03</div>
+        <div class="preview">2 erreurs consécutives sur duration measures. Mini-cours dispo.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="icn">🦸</div>
+      <div class="body">
+        <div class="row1"><span class="from">Superman Challenge</span><span class="time">hero</span></div>
+        <div class="subject"><span class="lab action">Action</span>FI-06 Bond Valuation · 30 questions hard</div>
+        <div class="preview">Critical LM, mastery 42%. Action max ROI · ~50 min</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Detail pane ─── -->
+  <section class="pane-detail">
+    <div class="detail">
+      <h1><span class="lab coach">Coach</span> On fait une session courte ETH-01 ce soir ?</h1>
+      <div class="meta-line">de <b>Wingman Coach</b> · il y a 12 min · <a href="#" style="color:#a855f7;text-decoration:none;">marquer non lu</a></div>
+
+      <div class="actions">
+        <button class="btn primary">Reply</button>
+        <button class="btn">Snooze 1h</button>
+        <button class="btn">Archive</button>
+      </div>
+
+      <div class="thread">
+        <div class="msg coach">Salut Houcem 👋 Tu es à +46% du schedule. Bon rythme.</div>
+        <div class="msg-time">12:01</div>
+        <div class="msg coach">J'ai vu que tu as buté sur 3 questions ETH-01 ce matin. C'est l'ambiguïté Standard III B ou la confidentialité ?</div>
+        <div class="msg-time">12:02</div>
+        <div class="msg me">La confidentialité — je confonds avec l'exception "criminal acts"</div>
+        <div class="msg-time">12:14</div>
+        <div class="msg coach">Compris. Je peux te générer un mini-cours focalisé sur ce point précis (3 min lecture + 4 questions test). On fait ?</div>
+        <div class="msg-time">12:14</div>
+      </div>
+
+      <div class="compose-input">
+        <input type="text" placeholder="Réponds à ton coach…">
+        <button>Send ↵</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  document.querySelectorAll('.row').forEach(r => {
+    r.addEventListener('click', () => {
+      document.querySelectorAll('.row').forEach(x => x.classList.remove('selected'));
+      r.classList.add('selected');
+    });
+  });
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+      n.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

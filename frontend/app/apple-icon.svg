@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="38" fill="url(#bg)"/>
+  <g transform="translate(90,95) scale(0.35,-0.35)">
+    <path d="M -10,0 C -10,40 -40,100 -100,140 C -130,158 -155,162 -170,155 C -140,140 -110,105 -90,70 C -70,35 -55,10 -10,0 Z" fill="white" opacity="0.95"/>
+    <path d="M -5,5 C -5,55 -20,120 -60,175 C -80,200 -105,215 -125,212 C -95,190 -65,145 -45,100 C -25,55 -15,20 -5,5 Z" fill="white" opacity="0.85"/>
+    <path d="M 0,10 C 5,70 5,140 -15,200 C -28,230 -48,250 -70,255 C -48,230 -28,185 -15,135 C -5,85 0,40 0,10 Z" fill="white" opacity="0.75"/>
+    <path d="M 10,0 C 10,40 40,100 100,140 C 130,158 155,162 170,155 C 140,140 110,105 90,70 C 70,35 55,10 10,0 Z" fill="white" opacity="0.95"/>
+    <path d="M 5,5 C 5,55 20,120 60,175 C 80,200 105,215 125,212 C 95,190 65,145 45,100 C 25,55 15,20 5,5 Z" fill="white" opacity="0.85"/>
+    <path d="M 0,10 C -5,70 -5,140 15,200 C 28,230 48,250 70,255 C 48,230 28,185 15,135 C 5,85 0,40 0,10 Z" fill="white" opacity="0.75"/>
+    <ellipse cx="0" cy="5" rx="12" ry="25" fill="white" opacity="0.5"/>
+  </g>
+</svg>

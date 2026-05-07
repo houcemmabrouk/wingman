@@ -1,0 +1,7 @@
+node_modules
+.next
+# .env.local is for host-side dev only (BACKEND_INTERNAL_URL=localhost:8000).
+# Inside Docker the rewrite must target the wingman-backend hostname, so this
+# file would poison the build by baking localhost into next.config.js rewrites.
+.env.local
+.env*.local

@@ -1,0 +1,147 @@
+/* Level 1 — Active Discovery card styling. Loads ON TOP of wingman_light.css.
+   Each card spans 1+ pages. Question header in EN, 5 teaching blocks in FR. */
+
+/* Each card starts a new page */
+.card-l1 {
+    page-break-before: always;
+    padding: 0;
+}
+.card-l1:first-of-type {
+    page-break-before: always;
+}
+
+/* ── Card head: numbering + LO anchor ─────────────────────────── */
+.card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid #e8ecf5;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+}
+.card-num {
+    color: #4361ee;
+    font-size: 9pt; font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+}
+.card-meta {
+    color: #8890a8;
+    font-size: 8.5pt;
+    font-style: italic;
+    text-align: right;
+    max-width: 60%;
+}
+
+/* ── Question block (③, EN, verbatim QBank) ───────────────────── */
+.block-question { border-left-color: #4361ee !important; }
+.block-question .block-title,
+.block-question .block-num { color: #4361ee !important; }
+.q-stem {
+    color: #0f1525;
+    font-size: 10.5pt; font-weight: 600;
+    line-height: 1.55;
+    margin-bottom: 10px;
+}
+.q-choices {
+    list-style: none;
+    margin: 0 0 10px 0;
+    padding: 0;
+    counter-reset: q-choice;
+}
+.q-choices li {
+    position: relative;
+    padding: 6px 12px 6px 36px;
+    margin-bottom: 4px;
+    background: #ffffff;
+    border: 1px solid #e8ecf5;
+    border-radius: 10px;
+    font-size: 10pt;
+    color: #1a1f2e;
+    counter-increment: q-choice;
+}
+.q-choices li::before {
+    content: counter(q-choice, upper-alpha);
+    position: absolute;
+    left: 8px; top: 6px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #4361ee;
+    color: #ffffff;
+    font-size: 9pt; font-weight: 700;
+    text-align: center;
+    line-height: 20px;
+}
+.q-correct {
+    background: #e8f5ed;
+    color: #1a1f2e;
+    border-left: 3px solid #2d8a4f;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 9.5pt;
+}
+.q-correct strong { color: #2d8a4f; font-weight: 700; }
+
+/* ── Teaching blocks (① rappel, ② formule, ③ raisonnement, ④ resolution, ⑤ calc) ── */
+.block {
+    page-break-inside: avoid;
+    margin: 10px 0;
+    padding: 11px 16px;
+    border-radius: 12px;
+    border-left: 4px solid #06b6a4;
+    background: #f8faff;
+    border: 1px solid #d6deef;
+    border-left: 4px solid #06b6a4;
+}
+.block-title {
+    color: #06b6a4;
+    font-size: 8.5pt; font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+.block-num {
+    display: inline-block;
+    font-size: 12pt;
+    line-height: 1;
+    color: #06b6a4;
+}
+.block-body {
+    color: #1a1f2e;
+    font-size: 10.5pt;
+    line-height: 1.55;
+}
+.block-body p { margin: 0 0 6px 0; }
+.block-body p:last-child { margin-bottom: 0; }
+.block-body ul { margin: 4px 0 6px 0; padding-left: 22px; }
+.block-body li { margin-bottom: 3px; font-size: 10pt; }
+
+/* Per-block accents */
+.block-rappel       { border-left-color: #4361ee; }
+.block-rappel       .block-title, .block-rappel .block-num { color: #4361ee; }
+
+.block-formule      { border-left-color: #06b6a4; background: #e6f7f4; }
+.block-formule      .block-title, .block-formule .block-num { color: #06b6a4; }
+.block-formule .block-body .eq {
+    font-family: 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif;
+    color: #0f1525;
+    font-size: 13pt;
+    line-height: 1.4;
+    text-align: center;
+    padding: 4px 0;
+}
+
+.block-raisonnement { border-left-color: #4361ee; }
+.block-raisonnement .block-title, .block-raisonnement .block-num { color: #4361ee; }
+
+.block-resolution   { border-left-color: #2d8a4f; background: #e8f5ed; }
+.block-resolution   .block-title, .block-resolution .block-num { color: #2d8a4f; }
+
+.block-calc         { border-left-color: #d64545; background: #fdecec; }
+.block-calc         .block-title, .block-calc .block-num { color: #d64545; }
+.block-calc .block-body {
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+}

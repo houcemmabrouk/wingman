@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CFA L1 — Eisenhower Study Planner</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F8F7FF;--bar:#5B21B6;--panel:#fff;--border:#E5E7EB;
+  --q1:#EF4444;--q1bg:#FEF2F2;--q1t:#991B1B;
+  --q2:#3B82F6;--q2bg:#EFF6FF;--q2t:#1E40AF;
+  --q3:#F97316;--q3bg:#FFF7ED;--q3t:#9A3412;
+  --q4:#22C55E;--q4bg:#F0FDF4;--q4t:#166534;
+  --ns:#94A3B8;--ip:#F59E0B;--tr:#3B82F6;--ma:#22C55E;
+  --topic-QM:#7C3AED;--topic-ECO:#059669;--topic-CORP:#EA580C;--topic-FSA:#D4537E;
+  --topic-EQU:#2563EB;--topic-FI:#0891B2;--topic-DER:#65A30D;--topic-ALT:#D97706;
+  --topic-PM:#6B7280;--topic-ETH:#DC2626;
+}
+html{font-size:11.5px}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:#1E293B;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* TOP BAR */
+.topbar{background:var(--bar);color:#fff;padding:0 16px;height:38px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;z-index:100}
+.topbar h1{font-size:13px;font-weight:700;white-space:nowrap}
+.topbar .countdown{font-size:11px;opacity:.9;font-variant-numeric:tabular-nums}
+.kpis{display:flex;gap:6px}
+.kpi{background:rgba(255,255,255,.15);padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.topbar-actions{display:flex;gap:4px}
+.topbar-actions button{background:rgba(255,255,255,.2);border:none;color:#fff;padding:3px 8px;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600}
+.topbar-actions button:hover{background:rgba(255,255,255,.35)}
+
+/* MAIN LAYOUT */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* LEFT PANEL */
+.left{width:26%;min-width:280px;max-width:380px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.left-header{padding:8px 10px 6px;border-bottom:1px solid var(--border)}
+.search-row{display:flex;gap:4px;margin-bottom:6px}
+.search-row input{flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;outline:none}
+.search-row input:focus{border-color:var(--bar)}
+.search-row select{padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:10px;background:#fff;cursor:pointer}
+.topic-filters{display:flex;flex-wrap:wrap;gap:3px}
+.topic-filters button{padding:1px 6px;border-radius:10px;font-size:9px;font-weight:700;border:1.5px solid transparent;cursor:pointer;transition:.15s}
+.topic-filters button.active{color:#fff!important}
+.topic-filters button:not(.active){background:#F1F5F9;color:#64748B}
+.topic-filters button:not(.active):hover{background:#E2E8F0}
+.left-table-wrap{flex:1;overflow-y:auto}
+.left-table{width:100%;border-collapse:collapse;font-size:10.5px}
+.left-table th{position:sticky;top:0;background:#F8FAFC;padding:4px 6px;text-align:left;font-size:9px;text-transform:uppercase;color:#64748B;border-bottom:1px solid var(--border);z-index:2}
+.left-table td{padding:3px 6px;border-bottom:1px solid #F1F5F9;cursor:pointer;transition:background .1s}
+.left-table tr:hover td{background:#F8F7FF}
+.left-table tr.selected td{background:#EDE9FE}
+
+/* TOPIC BADGE */
+.tbadge{display:inline-flex;align-items:center;justify-content:center;width:28px;height:16px;border-radius:3px;font-size:8px;font-weight:800;color:#fff;letter-spacing:.3px}
+
+/* STATUS PILL */
+.spill{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;cursor:pointer;user-select:none;transition:.15s}
+.spill-ns{background:#F1F5F9;color:var(--ns)}.spill-ip{background:#FEF3C7;color:#92400E}
+.spill-tr{background:#DBEAFE;color:#1E40AF}.spill-ma{background:#DCFCE7;color:#166534}
+
+/* LOS badge */
+.los-badge{background:#F1F5F9;color:#64748B;padding:0px 4px;border-radius:6px;font-size:9px;font-weight:600}
+
+/* RIGHT PANEL */
+.right{flex:1;overflow-y:auto;padding:8px 10px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px}
+
+/* QUADRANT TABLE */
+.qtable{display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.qtable[data-q="1"]{border-left:4px solid var(--q1)}.qtable[data-q="1"] .qhead{background:var(--q1bg);color:var(--q1t)}
+.qtable[data-q="2"]{border-left:4px solid var(--q2)}.qtable[data-q="2"] .qhead{background:var(--q2bg);color:var(--q2t)}
+.qtable[data-q="3"]{border-left:4px solid var(--q3)}.qtable[data-q="3"] .qhead{background:var(--q3bg);color:var(--q3t)}
+.qtable[data-q="4"]{border-left:4px solid var(--q4)}.qtable[data-q="4"] .qhead{background:var(--q4bg);color:var(--q4t)}
+.qhead{padding:6px 10px}
+.qhead .qtitle{font-size:11px;font-weight:800;display:flex;align-items:center;gap:4px}
+.qhead .qcount{font-size:9.5px;opacity:.7;margin-left:auto;font-weight:600}
+.qhead .qdesc{font-size:8.5px;opacity:.7;margin-top:1px}
+.qtable .qbody{flex:1;overflow-y:auto;background:#fff}
+.qtable table{width:100%;border-collapse:collapse;font-size:10px}
+.qtable thead th{position:sticky;top:0;background:#FAFAFA;padding:3px 6px;text-align:left;font-size:8px;text-transform:uppercase;color:#94A3B8;border-bottom:1px solid var(--border);z-index:1}
+.qtable tbody td{padding:2px 6px;border-bottom:1px solid #F8FAFC;transition:background .1s;cursor:grab}
+.qtable tbody tr:nth-child(even) td{background:#FAFAFA}
+.qtable[data-q="1"] tbody tr:hover td{background:#FEF2F2}
+.qtable[data-q="2"] tbody tr:hover td{background:#EFF6FF}
+.qtable[data-q="3"] tbody tr:hover td{background:#FFF7ED}
+.qtable[data-q="4"] tbody tr:hover td{background:#F0FDF4}
+.qtable tbody tr.drag-over td{background:#EDE9FE!important;box-shadow:inset 0 2px 0 var(--bar)}
+.qtable tbody tr.dragging{opacity:.4}
+.pin-icon{font-size:10px;margin-left:2px;opacity:.5}
+.qbody-empty{padding:20px;text-align:center;color:#94A3B8;font-size:11px}
+
+/* DROP ZONE */
+.qtable.drop-target{box-shadow:0 0 0 2px var(--bar);background:rgba(91,33,182,.03)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{background:#fff;border-radius:12px;width:440px;max-height:85vh;overflow-y:auto;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.modal-head .tbadge{width:34px;height:20px;font-size:9.5px}
+.modal-head .lm-code{font-size:12px;font-weight:700;color:#64748B}
+.modal-title{font-size:14px;font-weight:800;margin-bottom:4px}
+.modal-qbadge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;margin-bottom:12px}
+.modal-qbadge[data-q="1"]{background:var(--q1bg);color:var(--q1t)}
+.modal-qbadge[data-q="2"]{background:var(--q2bg);color:var(--q2t)}
+.modal-qbadge[data-q="3"]{background:var(--q3bg);color:var(--q3t)}
+.modal-qbadge[data-q="4"]{background:var(--q4bg);color:var(--q4t)}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px}
+.stat-box{background:#F8FAFC;border-radius:6px;padding:6px 8px;text-align:center}
+.stat-box .stat-val{font-size:15px;font-weight:800;color:#1E293B}
+.stat-box .stat-lbl{font-size:8px;text-transform:uppercase;color:#94A3B8;font-weight:600}
+.status-btns{display:flex;gap:4px;margin-bottom:12px}
+.status-btns button{flex:1;padding:6px;border:2px solid var(--border);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;background:#fff;transition:.15s}
+.status-btns button.active{color:#fff}
+.status-btns button[data-s="ns"].active{background:var(--ns);border-color:var(--ns)}
+.status-btns button[data-s="ip"].active{background:var(--ip);border-color:var(--ip)}
+.status-btns button[data-s="tr"].active{background:var(--tr);border-color:var(--tr)}
+.status-btns button[data-s="ma"].active{background:var(--ma);border-color:var(--ma)}
+.slider-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.slider-row label{width:70px;font-size:10px;font-weight:600;color:#64748B}
+.slider-row input[type=range]{flex:1;accent-color:var(--bar)}
+.slider-row .sval{width:36px;text-align:right;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.slider-row input[type=number]{width:50px;padding:3px 5px;border:1px solid var(--border);border-radius:5px;font-size:11px;text-align:center}
+.modal textarea{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;resize:vertical;min-height:48px;margin-bottom:10px}
+.modal-actions{display:flex;gap:6px}
+.modal-actions button{padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:none;transition:.15s}
+.btn-master{background:var(--ma);color:#fff;flex:1}.btn-master:hover{filter:brightness(.9)}
+.btn-reassign{background:#F1F5F9;color:#64748B}.btn-reassign:hover{background:#E2E8F0}
+.btn-close{background:#F1F5F9;color:#64748B;margin-left:auto}.btn-close:hover{background:#E2E8F0}
+.reassign-dd{position:relative;display:inline-block}
+.reassign-dd .dd-menu{position:absolute;bottom:100%;left:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.1);display:none;min-width:180px;z-index:10}
+.reassign-dd .dd-menu.show{display:block}
+.reassign-dd .dd-menu button{display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:none;font-size:11px;cursor:pointer;font-weight:600}
+.reassign-dd .dd-menu button:hover{background:#F8F7FF}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}::-webkit-scrollbar-thumb:hover{background:#94A3B8}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>CFA L1 — Eisenhower Planner</h1>
+  <div class="countdown" id="countdown"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="topbar-actions">
+    <button onclick="recalcAll()" title="Recalculate all non-pinned modules">Recalculate</button>
+    <button onclick="exportCSV()">Export CSV</button>
+    <button onclick="resetAll()">Reset</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="left">
+    <div class="left-header">
+      <div class="search-row">
+        <input type="text" id="searchInput" placeholder="Search modules... ( / )" />
+        <select id="sortSelect" onchange="renderLeft()">
+          <option value="quadrant">By Quadrant</option>
+          <option value="priority">By Priority</option>
+          <option value="topic">By Topic</option>
+          <option value="status">By Status</option>
+        </select>
+      </div>
+      <div class="topic-filters" id="topicFilters"></div>
+    </div>
+    <div class="left-table-wrap">
+      <table class="left-table"><thead><tr><th>Topic</th><th>LM</th><th>Title</th><th>LOS</th><th>Status</th></tr></thead><tbody id="leftBody"></tbody></table>
+    </div>
+  </div>
+  <div class="right" id="quadrants"></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────
+const TOPICS = {
+  QM:{full:"Quantitative Methods",w:"8–12%",wm:10,c:"#7C3AED"},
+  ECO:{full:"Economics",w:"8–12%",wm:10,c:"#059669"},
+  CORP:{full:"Corporate Issuers",w:"8–12%",wm:10,c:"#EA580C"},
+  FSA:{full:"Financial Statement Analysis",w:"13–17%",wm:15,c:"#D4537E"},
+  EQU:{full:"Equity Investments",w:"10–12%",wm:11,c:"#2563EB"},
+  FI:{full:"Fixed Income",w:"11–14%",wm:11,c:"#0891B2"},
+  DER:{full:"Derivatives",w:"5–8%",wm:6.5,c:"#65A30D"},
+  ALT:{full:"Alternative Investments",w:"5–8%",wm:6.5,c:"#D97706"},
+  PM:{full:"Portfolio Management",w:"5–8%",wm:6.5,c:"#6B7280"},
+  ETH:{full:"Ethical & Professional Standards",w:"15–20%",wm:17.5,c:"#DC2626"}
+};
+
+const RAW=[
+["QM","LM01","Rates and Returns",6,4.47,3.67],["QM","LM02","Time Value of Money",3,4.60,4.00],
+["QM","LM03","Statistical Measures of Asset Returns",4,3.90,3.75],["QM","LM04","Probability Trees and Conditional Expectations",3,4.20,4.00],
+["QM","LM05","Portfolio Mathematics",3,4.33,3.33],["QM","LM06","Simulation Methods",3,3.80,3.00],
+["QM","LM07","Estimation and Inference",3,3.80,3.00],["QM","LM08","Hypothesis Testing",4,3.70,3.25],
+["QM","LM09","Parametric and Non-Parametric Tests",2,3.80,3.50],["QM","LM10","Simple Linear Regression",7,3.86,3.43],
+["QM","LM11","Big Data Techniques",3,3.20,2.00],
+["ECO","LM01","The Firm and Market Structures",5,2.56,1.60],["ECO","LM02","Understanding Business Cycles",3,2.20,1.00],
+["ECO","LM03","Fiscal Policy",4,2.40,1.50],["ECO","LM04","Monetary Policy",4,2.30,1.25],
+["ECO","LM05","Introduction to Geopolitics",6,2.50,1.00],["ECO","LM06","International Trade",3,2.47,1.67],
+["ECO","LM07","Capital Flows and FX Market",3,2.20,1.00],["ECO","LM08","Exchange Rate Calculations",2,3.00,3.00],
+["CORP","LM01","Organizational Forms, Features, and Ownership",3,2.47,1.67],["CORP","LM02","Investors and Other Stakeholders",3,2.33,1.33],
+["CORP","LM03","Corporate Governance",3,2.60,1.00],["CORP","LM04","Working Capital and Liquidity",3,2.67,1.67],
+["CORP","LM05","Capital Investments and Capital Allocation",4,2.45,1.25],["CORP","LM06","Capital Structure",4,2.90,2.00],
+["CORP","LM07","Business Models",2,2.20,1.00],
+["FSA","LM01","Introduction to Financial Statement Analysis",5,3.40,1.00],["FSA","LM02","Analyzing Income Statements",7,3.57,1.43],
+["FSA","LM03","Analyzing Balance Sheets",5,3.88,2.20],["FSA","LM04","Analyzing Statements of Cash Flows I",7,3.57,1.43],
+["FSA","LM05","Analyzing Statements of Cash Flows II",2,4.00,2.50],["FSA","LM06","Analysis of Inventories",3,3.67,1.67],
+["FSA","LM07","Analysis of Long-Lived Assets",4,3.70,1.75],["FSA","LM08","Long-Term Liabilities and Equity",3,3.67,1.67],
+["FSA","LM09","Analysis of Income Taxes",4,3.90,2.25],["FSA","LM10","Financial Reporting Quality",9,3.53,1.33],
+["FSA","LM11","Financial Analysis Techniques",6,3.67,1.67],["FSA","LM12","Financial Statement Modeling",6,3.87,2.17],
+["EQU","LM01","Market Organization and Structure",12,3.05,1.50],["EQU","LM02","Security Market Indexes",11,3.18,1.55],
+["EQU","LM03","Market Efficiency",7,3.29,1.57],["EQU","LM05","Company Analysis: Past and Present",5,3.48,2.40],
+["EQU","LM06","Industry and Competitive Analysis",5,3.12,1.80],["EQU","LM07","Company Analysis: Forecasting",5,3.24,1.80],
+["EQU","LM08","Equity Valuation: Concepts and Basic Tools",13,3.65,1.85],
+["FI","LM01","Fixed-Income Instrument Features",2,3.80,2.00],["FI","LM02","Fixed-Income Cash Flows and Types",2,3.80,2.00],
+["FI","LM03","Fixed-Income Issuance and Trading",3,3.93,2.33],["FI","LM04","Fixed-Income Markets for Corporate Issuers",3,4.07,2.67],
+["FI","LM05","Fixed-Income Markets for Government Issuers",2,4.00,2.50],["FI","LM06","Bond Valuation: Prices and Yields",3,4.07,2.67],
+["FI","LM07","Yield and Yield Spread Measures for Fixed-Rate Bonds",2,4.40,3.50],["FI","LM08","Yield and Yield Spread Measures for Floating-Rate",2,4.60,4.00],
+["FI","LM09","Term Structure of Interest Rates",3,4.20,3.00],["FI","LM10","Interest Rate Risk and Return",3,4.33,3.33],
+["FI","LM11","Yield-Based Bond Duration Measures",2,4.20,3.00],["FI","LM12","Yield-Based Bond Convexity and Portfolio Properties",3,4.60,4.00],
+["FI","LM13","Curve-Based and Empirical Duration Measures",4,4.40,3.50],["FI","LM14","Credit Risk",3,3.93,2.33],
+["FI","LM15","Credit Analysis for Government Issuers",1,4.20,3.00],["FI","LM16","Credit Analysis for Corporate Issuers",3,4.07,2.67],
+["FI","LM17","Fixed-Income Securitization",2,4.00,2.50],["FI","LM18","Asset-Backed Security Instruments and Valuation",4,3.80,2.00],
+["FI","LM19","Mortgage-Backed Security Instruments and Valuation",4,3.80,2.00],
+["DER","LM01","Derivative Instrument and Market Features",2,2.60,2.00],["DER","LM02","Forward Commitment and Contingent Claim Features",3,3.47,3.67],
+["DER","LM03","Derivative Benefits, Risks, and Uses",2,3.10,2.50],["DER","LM04","Arbitrage, Replication, and Cost of Carry",2,3.20,3.50],
+["DER","LM05","Pricing and Valuation of Forward Contracts",2,3.70,4.00],["DER","LM06","Pricing and Valuation of Futures Contracts",2,3.40,4.00],
+["DER","LM07","Pricing and Valuation of Interest Rate Swaps",2,3.20,3.50],["DER","LM08","Pricing and Valuation of Options",4,3.35,3.50],
+["DER","LM09","Option Replication Using Put-Call Parity",2,3.40,4.00],["DER","LM10","Valuing a Derivative Using a One-Period Binomial Model",2,3.30,3.00],
+["ALT","LM01","Alternative Investment Features, Methods, Structures",3,1.73,1.33],["ALT","LM02","Alternative Investment Performance and Returns",2,2.30,2.00],
+["ALT","LM03","Private Capital: Equity and Debt",3,2.07,1.67],["ALT","LM04","Real Estate and Infrastructure",4,2.00,2.00],
+["ALT","LM05","Natural Resources",3,2.07,1.67],["ALT","LM06","Hedge Funds",3,2.07,1.67],
+["ALT","LM07","Introduction to Digital Assets",4,1.95,1.50],
+["PM","LM01","Portfolio Risk and Return: Part I",7,3.26,2.14],["PM","LM02","Portfolio Risk and Return: Part II",9,3.11,2.11],
+["PM","LM03","Portfolio Management: An Overview",6,2.40,1.00],["PM","LM04","Basics of Portfolio Planning and Construction",8,2.67,1.25],
+["PM","LM05","Behavioral Biases of Individuals",3,2.47,1.67],["PM","LM06","Introduction to Risk Management",7,2.86,1.14],
+["ETH","LM01","Ethics and Trust in the Investment Profession",7,3.40,1.00],
+["ETH","LM04","Introduction to GIPS",6,3.40,1.00],["ETH","LM05","Ethics Application",2,3.60,1.50]
+];
+
+const STATUSES = {not_started:"NS",in_progress:"IP",to_review:"TR",mastered:"MA"};
+const STATUS_ORDER = ["not_started","in_progress","to_review","mastered"];
+const STATUS_LABELS = {not_started:"Not Started",in_progress:"In Progress",to_review:"To Review",mastered:"Mastered"};
+const STATUS_CLASS = {not_started:"ns",in_progress:"ip",to_review:"tr",mastered:"ma"};
+const Q_NAMES = {1:"FAIRE MAINTENANT",2:"PLANIFIER",3:"DELEGUER / REDUIRE",4:"ELIMINER / REDUIRE"};
+const Q_EMOJI = {1:"\uD83D\uDD34",2:"\uD83D\uDD35",3:"\uD83D\uDFE0",4:"\uD83D\uDFE2"};
+const Q_DESC = {
+  1:"Impact direct sur le score, delai proche. A traiter cette semaine.",
+  2:"Fort poids exam, encore du temps. La ou les bons candidats passent le plus de temps.",
+  3:"Poids faible mais semble urgent. Couvrir rapidement sans approfondir.",
+  4:"Faible poids exam, faible priorite. Survoler uniquement."
+};
+
+let modules = [];
+let selectedId = null;
+let activeTopicFilter = "ALL";
+
+// ── INIT ──────────────────────────────────────────────────
+function init() {
+  const saved = localStorage.getItem("cfa_planner_v1");
+  let savedMap = {};
+  if (saved) { try { savedMap = JSON.parse(saved); } catch(e){} }
+
+  modules = RAW.map(r => {
+    const id = r[0]+"-"+r[1];
+    const s = savedMap[id] || {};
+    return {
+      id, topic:r[0], lm:r[1], title:r[2], nb_los:r[3],
+      priority_score:r[4], difficulty_score:r[5],
+      exam_weight_range: TOPICS[r[0]].w,
+      exam_weight_mid: TOPICS[r[0]].wm,
+      status: s.status || "not_started",
+      mastery_pct: s.mastery_pct ?? 0,
+      accuracy_pct: s.accuracy_pct ?? null,
+      mock_score: s.mock_score ?? null,
+      notes: s.notes || "",
+      pinned: s.pinned || false,
+      quadrant: 0
+    };
+  });
+
+  modules.forEach(m => { if (!m.pinned) m.quadrant = assignQuadrant(m); else m.quadrant = s(m)?.quadrant || assignQuadrant(m); });
+  // restore pinned quadrants
+  modules.forEach(m => { const s = savedMap[m.id]; if (s && s.pinned && s.quadrant) m.quadrant = s.quadrant; });
+
+  buildTopicFilters();
+  renderAll();
+  updateCountdown();
+  document.getElementById("searchInput").addEventListener("input", renderLeft);
+  document.addEventListener("keydown", handleKeys);
+}
+
+function s(m) { try { return JSON.parse(localStorage.getItem("cfa_planner_v1"))?.[m.id]; } catch(e){ return null; } }
+
+function assignQuadrant(m) {
+  const w = m.exam_weight_mid, p = m.priority_score, mastery = m.mastery_pct, gap = 100 - mastery;
+  const isImportant = w >= 10 || p >= 3.8 || (w >= 8 && gap > 60);
+  const isUrgent = gap > 70 || (w >= 10 && mastery < 40) || p >= 4.2;
+  if (isImportant && isUrgent) return 1;
+  if (isImportant && !isUrgent) return 2;
+  if (!isImportant && isUrgent) return 3;
+  return 4;
+}
+
+function recalcAll() {
+  modules.forEach(m => { if (!m.pinned) m.quadrant = assignQuadrant(m); });
+  save(); renderAll();
+}
+
+// ── SAVE ──────────────────────────────────────────────────
+function save() {
+  const obj = {};
+  modules.forEach(m => {
+    obj[m.id] = { status:m.status, mastery_pct:m.mastery_pct, accuracy_pct:m.accuracy_pct,
+      mock_score:m.mock_score, notes:m.notes, pinned:m.pinned, quadrant:m.quadrant };
+  });
+  localStorage.setItem("cfa_planner_v1", JSON.stringify(obj));
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function renderAll() { renderLeft(); renderQuadrants(); renderKPIs(); }
+
+function renderKPIs() {
+  const ma = modules.filter(m=>m.status==="mastered").length;
+  const ip = modules.filter(m=>m.status==="in_progress").length;
+  const hp = modules.filter(m=>m.quadrant===1).length;
+  const mockScores = modules.filter(m=>m.mock_score!==null).map(m=>m.mock_score);
+  const mockAvg = mockScores.length ? Math.round(mockScores.reduce((a,b)=>a+b,0)/mockScores.length) : "—";
+  document.getElementById("kpis").innerHTML =
+    `<span class="kpi">\uD83D\uDFE2 Mastered: ${ma}</span>`+
+    `<span class="kpi">\uD83D\uDFE1 In Progress: ${ip}</span>`+
+    `<span class="kpi">\uD83D\uDD34 High Priority: ${hp}</span>`+
+    `<span class="kpi">\uD83D\uDCCA Mock Avg: ${mockAvg}${mockAvg!=="—"?"%":""}</span>`;
+}
+
+function updateCountdown() {
+  const exam = new Date(2026, 7, 22); // Aug 22 2026
+  const days = Math.ceil((exam - new Date()) / 86400000);
+  document.getElementById("countdown").textContent = `${days} days to Aug 22, 2026`;
+}
+
+function badge(topic) {
+  const c = TOPICS[topic]?.c || "#666";
+  return `<span class="tbadge" style="background:${c}">${topic}</span>`;
+}
+
+function pill(status) {
+  return `<span class="spill spill-${STATUS_CLASS[status]}" data-status="${status}">${STATUSES[status]}</span>`;
+}
+
+// ── LEFT PANEL ────────────────────────────────────────────
+function buildTopicFilters() {
+  const el = document.getElementById("topicFilters");
+  let html = `<button class="active" data-t="ALL" style="background:var(--bar);border-color:var(--bar)">ALL</button>`;
+  Object.keys(TOPICS).forEach(t => {
+    html += `<button data-t="${t}" style="--tc:${TOPICS[t].c};border-color:${TOPICS[t].c};color:${TOPICS[t].c}">${t}</button>`;
+  });
+  el.innerHTML = html;
+  el.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeTopicFilter = btn.dataset.t;
+      el.querySelectorAll("button").forEach(b => {
+        b.classList.toggle("active", b.dataset.t === activeTopicFilter);
+        if (b.dataset.t === activeTopicFilter && b.dataset.t !== "ALL") b.style.background = b.style.getPropertyValue("--tc") || TOPICS[b.dataset.t]?.c;
+        else if (b.dataset.t !== "ALL" || activeTopicFilter !== "ALL") { if (!b.classList.contains("active")) b.style.background = ""; }
+        if (b.dataset.t === "ALL") { b.style.background = b.classList.contains("active") ? "var(--bar)" : ""; }
+      });
+      renderLeft();
+    });
+  });
+}
+
+function renderLeft() {
+  const search = document.getElementById("searchInput").value.toLowerCase();
+  const sort = document.getElementById("sortSelect").value;
+  let list = modules.filter(m => {
+    if (activeTopicFilter !== "ALL" && m.topic !== activeTopicFilter) return false;
+    if (search && !m.title.toLowerCase().includes(search) && !m.topic.toLowerCase().includes(search) && !m.id.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const sortFns = {
+    quadrant: (a,b) => a.quadrant-b.quadrant || b.priority_score-a.priority_score,
+    priority: (a,b) => b.priority_score-a.priority_score,
+    topic: (a,b) => a.topic.localeCompare(b.topic) || a.lm.localeCompare(b.lm),
+    status: (a,b) => STATUS_ORDER.indexOf(a.status)-STATUS_ORDER.indexOf(b.status)
+  };
+  list.sort(sortFns[sort] || sortFns.quadrant);
+
+  const body = document.getElementById("leftBody");
+  body.innerHTML = list.map(m =>
+    `<tr data-id="${m.id}" class="${m.id===selectedId?"selected":""}" onclick="openModal('${m.id}')">
+      <td>${badge(m.topic)}</td><td style="font-size:11px;color:#64748B;font-weight:600">${m.lm}</td>
+      <td style="font-size:11px">${m.title}</td><td><span class="los-badge">${m.nb_los}</span></td>
+      <td onclick="event.stopPropagation();cycleStatus('${m.id}')">${pill(m.status)}</td>
+    </tr>`
+  ).join("");
+}
+
+// ── QUADRANTS ─────────────────────────────────────────────
+function renderQuadrants() {
+  const el = document.getElementById("quadrants");
+  el.innerHTML = [1,2,3,4].map(q => {
+    const qm = modules.filter(m=>m.quadrant===q).sort((a,b)=>b.priority_score-a.priority_score);
+    return `<div class="qtable" data-q="${q}"
+      ondragover="qDragOver(event,${q})" ondragleave="qDragLeave(event)" ondrop="qDrop(event,${q})">
+      <div class="qhead">
+        <div class="qtitle">${Q_EMOJI[q]} Q${q} ${Q_NAMES[q]}<span class="qcount">${qm.length}/${modules.length}</span></div>
+        <div class="qdesc">${Q_DESC[q]}</div>
+      </div>
+      <div class="qbody">${qm.length ? `<table><thead><tr><th>Topic</th><th>LM</th><th>Title</th><th>Weight</th><th>Status</th></tr></thead><tbody>
+        ${qm.map(m=>`<tr draggable="true" data-id="${m.id}"
+          ondragstart="dStart(event,'${m.id}')" ondragend="dEnd(event)"
+          onclick="openModal('${m.id}')">
+          <td>${badge(m.topic)}</td><td style="font-weight:600;color:#64748B">${m.lm}${m.pinned?'<span class="pin-icon">\uD83D\uDCCC</span>':''}</td>
+          <td>${m.title}</td><td style="color:#94A3B8">${m.exam_weight_range}</td>
+          <td onclick="event.stopPropagation();cycleStatus('${m.id}')">${pill(m.status)}</td>
+        </tr>`).join("")}
+      </tbody></table>` : '<div class="qbody-empty">No modules in this quadrant</div>'}</div>
+    </div>`;
+  }).join("");
+}
+
+// ── DRAG & DROP ───────────────────────────────────────────
+let dragId = null;
+function dStart(e, id) { dragId = id; e.dataTransfer.effectAllowed = "move"; e.target.closest("tr").classList.add("dragging"); }
+function dEnd(e) { e.target.closest("tr")?.classList.remove("dragging"); document.querySelectorAll(".drop-target,.drag-over").forEach(el=>el.classList.remove("drop-target","drag-over")); }
+function qDragOver(e, q) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; e.currentTarget.classList.add("drop-target"); }
+function qDragLeave(e) { e.currentTarget.classList.remove("drop-target"); }
+function qDrop(e, q) {
+  e.preventDefault(); e.currentTarget.classList.remove("drop-target");
+  if (!dragId) return;
+  const m = modules.find(x=>x.id===dragId);
+  if (m) { m.quadrant = q; m.pinned = true; save(); renderAll(); }
+  dragId = null;
+}
+
+// ── STATUS CYCLE ──────────────────────────────────────────
+function cycleStatus(id) {
+  const m = modules.find(x=>x.id===id);
+  if (!m) return;
+  const i = STATUS_ORDER.indexOf(m.status);
+  m.status = STATUS_ORDER[(i+1)%4];
+  if (m.status === "mastered") m.mastery_pct = 100;
+  if (!m.pinned) m.quadrant = assignQuadrant(m);
+  save(); renderAll();
+}
+
+// ── MODAL ─────────────────────────────────────────────────
+function openModal(id) {
+  selectedId = id;
+  const m = modules.find(x=>x.id===id);
+  if (!m) return;
+  const modal = document.getElementById("modal");
+  modal.innerHTML = `
+    <div class="modal-head">${badge(m.topic)}<span class="lm-code">${m.id}</span></div>
+    <div class="modal-title">${m.title}</div>
+    <div class="modal-qbadge" data-q="${m.quadrant}">${Q_EMOJI[m.quadrant]} Q${m.quadrant} ${Q_NAMES[m.quadrant]}</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-val">${m.exam_weight_range}</div><div class="stat-lbl">Exam Weight</div></div>
+      <div class="stat-box"><div class="stat-val">${m.priority_score.toFixed(2)}</div><div class="stat-lbl">Priority Score</div></div>
+      <div class="stat-box"><div class="stat-val">${m.difficulty_score.toFixed(2)}</div><div class="stat-lbl">Difficulty</div></div>
+      <div class="stat-box"><div class="stat-val">${m.nb_los}</div><div class="stat-lbl">Learning Outcomes</div></div>
+      <div class="stat-box"><div class="stat-val">${m.mastery_pct}%</div><div class="stat-lbl">Mastery</div></div>
+      <div class="stat-box"><div class="stat-val">${m.accuracy_pct!==null?m.accuracy_pct+"%":"—"}</div><div class="stat-lbl">Accuracy</div></div>
+    </div>
+    <div class="status-btns">
+      ${STATUS_ORDER.map(s=>`<button data-s="${STATUS_CLASS[s]}" class="${m.status===s?"active":""}"
+        onclick="setStatus('${id}','${s}')">${STATUS_LABELS[s]}</button>`).join("")}
+    </div>
+    <div class="slider-row"><label>Mastery %</label><input type="range" min="0" max="100" value="${m.mastery_pct}"
+      oninput="updateSlider('${id}','mastery_pct',this.value)"><span class="sval" id="sv_mastery">${m.mastery_pct}%</span></div>
+    <div class="slider-row"><label>Accuracy %</label><input type="range" min="0" max="100" value="${m.accuracy_pct??0}"
+      oninput="updateSlider('${id}','accuracy_pct',this.value)"><span class="sval" id="sv_accuracy">${m.accuracy_pct??0}%</span></div>
+    <div class="slider-row"><label>Mock Score</label><input type="number" min="0" max="100" value="${m.mock_score??""}" placeholder="—"
+      onchange="updateField('${id}','mock_score',this.value?Number(this.value):null)"></div>
+    <textarea placeholder="Add notes..." onchange="updateField('${id}','notes',this.value)">${m.notes}</textarea>
+    <div class="modal-actions">
+      <button class="btn-master" onclick="markMastered('${id}')">Mark as Mastered</button>
+      <div class="reassign-dd">
+        <button class="btn-reassign" onclick="this.nextElementSibling.classList.toggle('show')">Reassign quadrant</button>
+        <div class="dd-menu">
+          ${[1,2,3,4].map(q=>`<button onclick="reassign('${id}',${q})">${Q_EMOJI[q]} Q${q} — ${Q_NAMES[q]}</button>`).join("")}
+        </div>
+      </div>
+      <button class="btn-close" onclick="closeModal()">Close</button>
+    </div>`;
+  document.getElementById("modalOverlay").classList.add("open");
+  renderLeft();
+}
+
+function closeModal() { document.getElementById("modalOverlay").classList.remove("open"); selectedId=null; renderLeft(); }
+
+function setStatus(id, status) {
+  const m = modules.find(x=>x.id===id);
+  if (!m) return;
+  m.status = status;
+  if (status === "mastered") m.mastery_pct = 100;
+  if (!m.pinned) m.quadrant = assignQuadrant(m);
+  save(); renderAll(); openModal(id);
+}
+
+function updateSlider(id, field, val) {
+  const m = modules.find(x=>x.id===id);
+  if (!m) return;
+  m[field] = Number(val);
+  const elId = field === "mastery_pct" ? "sv_mastery" : "sv_accuracy";
+  document.getElementById(elId).textContent = val + "%";
+  if (field === "mastery_pct" && !m.pinned) m.quadrant = assignQuadrant(m);
+  save(); renderKPIs(); renderQuadrants(); renderLeft();
+}
+
+function updateField(id, field, val) {
+  const m = modules.find(x=>x.id===id);
+  if (!m) return;
+  m[field] = val;
+  save(); renderKPIs();
+}
+
+function markMastered(id) {
+  const m = modules.find(x=>x.id===id);
+  if (!m) return;
+  m.status = "mastered"; m.mastery_pct = 100;
+  if (!m.pinned) m.quadrant = assignQuadrant(m);
+  save(); renderAll(); openModal(id);
+}
+
+function reassign(id, q) {
+  const m = modules.find(x=>x.id===id);
+  if (!m) return;
+  m.quadrant = q; m.pinned = true;
+  save(); renderAll(); openModal(id);
+}
+
+// ── KEYBOARD ──────────────────────────────────────────────
+function handleKeys(e) {
+  if (e.key === "Escape") { closeModal(); return; }
+  if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+    e.preventDefault(); document.getElementById("searchInput").focus(); return;
+  }
+  if (!selectedId || document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") return;
+  if (e.key === "m" || e.key === "M") { markMastered(selectedId); return; }
+  if (["1","2","3","4"].includes(e.key)) { reassign(selectedId, Number(e.key)); return; }
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────
+function exportCSV() {
+  const header = "ID,Topic,LM,Title,LOS,Exam Weight,Priority,Difficulty,Status,Mastery%,Accuracy%,Mock Score,Quadrant,Pinned,Notes\n";
+  const rows = modules.map(m =>
+    `"${m.id}","${m.topic}","${m.lm}","${m.title.replace(/"/g,'""')}",${m.nb_los},"${m.exam_weight_range}",${m.priority_score},${m.difficulty_score},"${m.status}",${m.mastery_pct},${m.accuracy_pct??""},${m.mock_score??""},Q${m.quadrant},${m.pinned},"${(m.notes||"").replace(/"/g,'""')}"`
+  ).join("\n");
+  const blob = new Blob([header+rows], {type:"text/csv"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "cfa_eisenhower_planner.csv"; a.click();
+}
+
+// ── RESET ─────────────────────────────────────────────────
+function resetAll() {
+  if (!confirm("Reset all progress? This cannot be undone.")) return;
+  localStorage.removeItem("cfa_planner_v1");
+  init();
+}
+
+// ── GO ────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

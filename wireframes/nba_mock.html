@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Wingman · NBA mock v2</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0b1020;
+    color: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  /* ── Hello ───────────────────────────── */
+  .hello { font-size: 22px; font-weight: 700; color: #fff; margin: 0 0 18px 0; }
+
+  /* ── Section title ────────────────────── */
+  .section-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
+    color: #94a3b8; margin: 22px 0 10px 4px;
+  }
+
+  /* ── GPS HEADER ──────────────────────── */
+  .gps-header {
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px;
+    margin-bottom: 4px;
+  }
+  @media (max-width: 720px) { .gps-header { grid-template-columns: 1fr; } }
+
+  /* Schedule Status card */
+  .schedule {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px; padding: 14px 18px;
+  }
+  .schedule .row1 {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .schedule .label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; color: #94a3b8;
+  }
+  .schedule .scores { font-size: 12px; color: #cbd5e1; font-weight: 600; }
+  .schedule .scores b { color: #fff; }
+  .schedule .bar-wrap {
+    position: relative; height: 10px;
+    background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden;
+  }
+  .schedule .bar {
+    position: absolute; top: 0; left: 0; bottom: 0;
+    background: linear-gradient(90deg, #3b82f6, #22c55e);
+    border-radius: 999px;
+  }
+  .schedule .marker {
+    position: absolute; top: -3px; bottom: -3px; width: 2px;
+    background: rgba(255,255,255,0.30);
+  }
+  .schedule .lead {
+    margin-top: 8px; font-size: 13px; color: #cbd5e1;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .schedule .lead-pill {
+    background: rgba(34,197,94,0.18); color: #4ade80;
+    padding: 3px 10px; border-radius: 999px; font-size: 14px; font-weight: 800;
+  }
+
+  /* Velocity card */
+  .velocity {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px; padding: 14px 18px;
+  }
+  .velocity .head { display: flex; align-items: baseline; justify-content: space-between; }
+  .velocity .big { font-size: 26px; font-weight: 800; color: #4ade80; }
+  .velocity .unit { font-size: 11px; color: #94a3b8; margin-left: 6px; }
+  .velocity .verdict {
+    margin-top: 4px; font-size: 12px; color: #cbd5e1;
+  }
+  .velocity .spark {
+    margin-top: 8px; height: 30px; width: 100%; display: block;
+  }
+  .velocity .projection {
+    margin-top: 10px; font-size: 11px; color: #94a3b8;
+  }
+  .velocity .projection b { color: #e5e7eb; }
+
+  /* ── Where I'm going ──────────────────── */
+  .destination {
+    background: rgba(168,85,247,0.06);
+    border: 1px solid rgba(168,85,247,0.18);
+    border-radius: 12px; padding: 12px 18px; margin: 12px 0 8px;
+    font-size: 13px; color: #cbd5e1;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .destination .dest-pill {
+    background: rgba(168,85,247,0.20); color: #c084fc;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.10em;
+    padding: 3px 9px; border-radius: 999px;
+  }
+  .destination b { color: #fff; }
+
+  /* ── Option cards ─────────────────────── */
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: grid; grid-template-columns: 36px 1fr auto; gap: 12px;
+    align-items: center; transition: border-color 120ms;
+  }
+  .card:hover { border-color: rgba(255,255,255,0.12); }
+  .card.recommended {
+    background: linear-gradient(135deg, rgba(168,85,247,0.10), rgba(168,85,247,0.03));
+    border-color: rgba(168,85,247,0.40);
+    box-shadow: 0 4px 24px -10px rgba(168,85,247,0.25);
+  }
+  .card .icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .card.recommended .icon { background: rgba(168,85,247,0.18); }
+  .card .body { min-width: 0; }
+  .card .name {
+    font-size: 15px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; gap: 8px; margin-bottom: 2px;
+  }
+  .card .star {
+    background: #a855f7; color: white;
+    font-size: 9px; font-weight: 700;
+    padding: 2px 7px; border-radius: 999px; letter-spacing: 0.12em;
+  }
+  .card .title { font-size: 13px; color: #cbd5e1; margin-bottom: 8px; }
+  .card .meta {
+    display: flex; gap: 14px; font-size: 11px; color: #94a3b8;
+    flex-wrap: wrap;
+  }
+  .card .meta b { color: #e5e7eb; font-weight: 600; }
+  .effort { display: inline-flex; gap: 2px; align-items: center; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.10); }
+  .dot.on { background: #fbbf24; }
+  .card .cta {
+    background: rgba(255,255,255,0.06); color: #fff;
+    border: 1px solid rgba(255,255,255,0.10);
+    padding: 9px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    text-decoration: none; white-space: nowrap;
+  }
+  .card.recommended .cta {
+    background: #a855f7; border-color: #a855f7;
+  }
+
+  /* Hero separator */
+  .hero-sep {
+    text-align: center; color: #64748b; font-size: 11px;
+    letter-spacing: 0.2em; margin: 18px 0 10px;
+  }
+  .hero-sep::before, .hero-sep::after {
+    content: ""; display: inline-block;
+    width: 60px; height: 1px;
+    background: rgba(255,255,255,0.10);
+    vertical-align: middle; margin: 0 12px;
+  }
+
+  /* ── Never Surrender (3 tiers) ────────── */
+  .ns-strip {
+    background: linear-gradient(135deg, rgba(34,197,94,0.06), rgba(34,197,94,0.02));
+    border: 1px solid rgba(34,197,94,0.20);
+    border-radius: 14px; padding: 14px 18px; margin-top: 14px;
+  }
+  .ns-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .ns-title { font-size: 13px; font-weight: 700; color: #fff; }
+  .ns-credo { font-size: 11px; color: #94a3b8; font-style: italic; }
+  .ns-tiers {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  @media (max-width: 720px) { .ns-tiers { grid-template-columns: 1fr; } }
+  .ns-tier {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+    cursor: pointer;
+    transition: border-color 120ms, background 120ms;
+  }
+  .ns-tier:hover { border-color: rgba(34,197,94,0.30); background: rgba(34,197,94,0.04); }
+  .ns-tier.suggested {
+    border-color: rgba(34,197,94,0.55);
+    background: rgba(34,197,94,0.08);
+  }
+  .ns-tier .tier-label { font-size: 10px; color: #4ade80; font-weight: 700; letter-spacing: 0.12em; }
+  .ns-tier .tier-title { font-size: 13px; color: #fff; font-weight: 600; }
+  .ns-tier .tier-meta { font-size: 11px; color: #94a3b8; }
+
+  /* ── Instant Report ───────────────────── */
+  details.report {
+    margin-top: 26px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px; padding: 14px 18px;
+  }
+  details.report summary {
+    cursor: pointer; font-weight: 600; color: #cbd5e1; font-size: 13px;
+    list-style: none; outline: none;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  details.report summary::after {
+    content: "▾"; font-size: 12px; color: #64748b;
+    transition: transform 200ms;
+  }
+  details[open].report summary::after { transform: rotate(180deg); }
+  .report-body {
+    margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 13px; color: #cbd5e1; line-height: 1.6;
+  }
+  .report-body h2 { font-size: 14px; color: #fff; margin: 12px 0 6px; }
+  .phase-chip {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700; margin-left: 6px;
+    background: rgba(168,85,247,0.18); color: #c084fc;
+  }
+  .footer-note {
+    margin-top: 22px; font-size: 11px; color: #64748b; text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hello">Salut Houcem 👋</div>
+
+  <!-- ═══ GPS HEADER ═══ -->
+  <div class="section-title">📍 OÙ TU EN ES</div>
+  <div class="gps-header">
+    <!-- Schedule Status -->
+    <div class="schedule">
+      <div class="row1">
+        <span class="label">Schedule status</span>
+        <span class="scores"><b>75%</b> / 29% target</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar" style="width: 75%"></div>
+        <div class="marker" style="left: 29%"></div>
+      </div>
+      <div class="lead">
+        <span>J-105 examen · streak 🔥 12</span>
+        <span class="lead-pill">+46%</span>
+      </div>
+    </div>
+    <!-- Velocity -->
+    <div class="velocity">
+      <div class="head">
+        <span><span class="big">+2.2%</span><span class="unit">/ semaine</span></span>
+        <span class="label" style="font-size: 10px;">Velocity</span>
+      </div>
+      <div class="verdict">Fast progress — au rythme actuel, projection 44% à J-0</div>
+      <svg class="spark" viewBox="0 0 200 30" preserveAspectRatio="none">
+        <polyline points="0,22 20,21 40,20 60,18 80,17 100,16 120,14 140,12 160,9 180,5 200,2"
+          fill="none" stroke="#4ade80" stroke-width="2"/>
+      </svg>
+      <div class="projection">Pour atteindre <b>70%</b> au jour J → push à <b>+3.9%/sem</b></div>
+    </div>
+  </div>
+
+  <!-- ═══ WHERE I'M GOING ═══ -->
+  <div class="destination">
+    <span class="dest-pill">→ DESTINATION</span>
+    <span>Cette semaine, vise <b>+6% mastery</b> · Prochain palier examen : <b>70% à J-0</b></span>
+  </div>
+
+  <!-- ═══ OPTIONS A-F ═══ -->
+  <div class="section-title">🎯 QUE VEUX-TU FAIRE MAINTENANT</div>
+  <div class="options">
+
+    <div class="card recommended">
+      <div class="icon">🎯</div>
+      <div class="body">
+        <div class="name">Daily Sharpener <span class="star">RECOMMANDÉ</span></div>
+        <div class="title">Drill ETH-01 · 12 questions hard</div>
+        <div class="meta">
+          <span>Impact <b>mastery 65 → ~80%</b></span>
+          <span>Durée <b>~18 min</b></span>
+          <span class="effort">Effort <span class="dot on"></span><span class="dot on"></span><span class="dot"></span></span>
+        </div>
+      </div>
+      <a class="cta" href="#">Start →</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🧭</div>
+      <div class="body">
+        <div class="name">Marco Polo Challenge</div>
+        <div class="title">Explore DER-09 (jamais touché) · 5 questions intro</div>
+        <div class="meta">
+          <span>Impact <b>+1 LM coverage, +1.5j d'avance</b></span>
+          <span>Durée <b>~12 min</b></span>
+          <span class="effort">Effort <span class="dot on"></span><span class="dot"></span><span class="dot"></span></span>
+        </div>
+      </div>
+      <a class="cta" href="#">Explore</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🏁</div>
+      <div class="body">
+        <div class="name">Champion Lap</div>
+        <div class="title">Mock thématique CORP · 25 questions chronométrées</div>
+        <div class="meta">
+          <span>Impact <b>test pattern recognition</b></span>
+          <span>Durée <b>~30 min</b></span>
+          <span class="effort">Effort <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></span>
+        </div>
+      </div>
+      <a class="cta" href="#">Lap</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🎧</div>
+      <div class="body">
+        <div class="name">Walkman Mode</div>
+        <div class="title">Audio passive · DER full course MP3</div>
+        <div class="meta">
+          <span>Impact <b>rétention légère DER</b></span>
+          <span>Durée <b>45 min</b></span>
+          <span class="effort">Effort <span class="dot on"></span><span class="dot"></span><span class="dot"></span></span>
+        </div>
+      </div>
+      <a class="cta" href="#">Listen</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">💪</div>
+      <div class="body">
+        <div class="name">Never Surrender · weakness focus</div>
+        <div class="title">Mini-cours Claude (concept + raison erreur + citation) → quiz sur 3 weaknesses (ETH-02, FSA-01, FI-11)</div>
+        <div class="meta">
+          <span>Impact <b>−3 weakness flags si ≥80%</b></span>
+          <span>Durée <b>~20 min</b></span>
+          <span class="effort">Effort <span class="dot on"></span><span class="dot on"></span><span class="dot"></span></span>
+        </div>
+      </div>
+      <a class="cta" href="#">Engage</a>
+    </div>
+
+    <div class="hero-sep">HERO MODE</div>
+
+    <div class="card">
+      <div class="icon">🦸</div>
+      <div class="body">
+        <div class="name">Superman Challenge</div>
+        <div class="title">Action Max ROI · FI-06 Bond Valuation (Critical, mastery 42%)</div>
+        <div class="meta">
+          <span>Impact <b>+8j d'avance, mastery 42 → ~75%</b></span>
+          <span>Durée <b>~50 min</b></span>
+          <span class="effort">Effort <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span></span>
+        </div>
+      </div>
+      <a class="cta" href="#">Engage</a>
+    </div>
+
+  </div>
+
+  <!-- ═══ NEVER SURRENDER (always available) ═══ -->
+  <div class="ns-strip">
+    <div class="ns-head">
+      <div>
+        <div class="ns-title">🐇 Never Surrender — toujours disponible</div>
+        <div class="ns-credo">"Je fais le max que je peux, même une petite action, même si je suis mort"</div>
+      </div>
+      <span class="label" style="font-size: 10px; color: #4ade80;">FAIBLE EFFORT</span>
+    </div>
+    <div class="ns-tiers">
+      <div class="ns-tier">
+        <div class="tier-label">TIER 1 · PASSIF</div>
+        <div class="tier-title">Audio Reading Summary</div>
+        <div class="tier-meta">5-10 min · écoute</div>
+      </div>
+      <div class="ns-tier suggested">
+        <div class="tier-label">TIER 2 · ENCODING ✓ Suggéré</div>
+        <div class="tier-title">Reading Summary + LOS Sheet</div>
+        <div class="tier-meta">10-15 min · lecture</div>
+      </div>
+      <div class="ns-tier">
+        <div class="tier-label">TIER 3 · ENCODING + CHECK</div>
+        <div class="tier-title">Reading + LOS + quiz easy</div>
+        <div class="tier-meta">15-20 min · lecture + 3-5 q</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ INSTANT REPORT ═══ -->
+  <details class="report">
+    <summary>📊 Instant Report — diagnostic par LM (Claude, ~$0.01/clic)</summary>
+    <div class="report-body">
+      <h2>Vue d'ensemble</h2>
+      <p>145 tentatives sur 60 jours, 18 erreurs (12% — bon). 5 LM touchés
+      dont 3 en Simulation, 1 en Consolidation, 1 en Découverte. J-105 examen.</p>
+
+      <h2>Plan par module</h2>
+      <p><b>ETH-01</b> <span class="phase-chip">🎯 Simulation</span> — 6/40 ratées (15%), coverage 75%, avg 52s.
+      Action : mock 25q ETH cette semaine, timing &lt; 60s/q.</p>
+
+      <p><b>FSA-01</b> <span class="phase-chip">🎯 Simulation</span> — 3/10 (30%), coverage 100%, avg 71s.
+      Action : drill 5 questions hard pour passer sous 20% error.</p>
+
+      <p><b>DER-09</b> <span class="phase-chip">🔍 Découverte</span> — 0 attempts, 0/7 LOS.
+      Action : tour exploratoire + lecture LOS Sheet avant.</p>
+
+      <h2>Synthèse — 3 priorités</h2>
+      <ul>
+        <li>Drill ETH-01 · 12 hard cette semaine</li>
+        <li>Explore DER-09 · 0% coverage</li>
+        <li>Mock thématique CORP · topic le plus en retard</li>
+      </ul>
+    </div>
+  </details>
+
+  <p class="footer-note">Mock v2 statique · Schedule + Velocity + Never Surrender 3-tier · pour valider la mise en page</p>
+
+</div>
+</body>
+</html>

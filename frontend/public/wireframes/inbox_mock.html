@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Wingman · Inbox mock</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0b1020;
+    color: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .layout {
+    display: grid; grid-template-columns: 1fr 380px;
+    min-height: 100vh; max-width: 1280px; margin: 0 auto;
+  }
+  @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } .chat { display: none; } }
+
+  /* ── Inbox column ─────────────────────── */
+  .inbox-col { padding: 28px 24px; border-right: 1px solid rgba(255,255,255,0.06); }
+  .inbox-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .inbox-title { font-size: 22px; font-weight: 800; color: #fff; }
+  .inbox-sub { font-size: 12px; color: #94a3b8; }
+
+  /* Filter chips */
+  .filters {
+    display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .chip {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #cbd5e1;
+    padding: 5px 11px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all 120ms;
+  }
+  .chip:hover { border-color: rgba(255,255,255,0.18); color: #fff; }
+  .chip.active {
+    background: rgba(168,85,247,0.18);
+    border-color: rgba(168,85,247,0.50);
+    color: #fff;
+  }
+  .chip .count {
+    font-size: 10px; opacity: 0.75;
+    background: rgba(0,0,0,0.30); padding: 1px 6px; border-radius: 999px;
+  }
+
+  /* List */
+  .items { display: flex; flex-direction: column; gap: 8px; }
+  .item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 14px 16px;
+    display: grid; grid-template-columns: 32px 1fr auto; gap: 12px;
+    align-items: center; cursor: pointer;
+    transition: border-color 120ms;
+  }
+  .item:hover { border-color: rgba(255,255,255,0.16); }
+  .item.unread { border-left: 3px solid #a855f7; }
+  .item.urgent { border-left: 3px solid #f97316; }
+
+  .item .icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .item.cat-action  .icon { background: rgba(168,85,247,0.18); }
+  .item.cat-alert   .icon { background: rgba(249,115,22,0.18); }
+  .item.cat-dispute .icon { background: rgba(34,197,94,0.18); }
+  .item.cat-coach   .icon { background: rgba(56,189,248,0.18); }
+
+  .item .body { min-width: 0; }
+  .item .row1 {
+    display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px;
+  }
+  .item .title { font-size: 14px; font-weight: 700; color: #fff; }
+  .item .badge {
+    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+    letter-spacing: 0.10em; text-transform: uppercase;
+  }
+  .badge.action  { background: rgba(168,85,247,0.16); color: #c084fc; }
+  .badge.alert   { background: rgba(249,115,22,0.16); color: #fb923c; }
+  .badge.dispute { background: rgba(34,197,94,0.16); color: #4ade80; }
+  .badge.coach   { background: rgba(56,189,248,0.16); color: #38bdf8; }
+  .item .snippet { font-size: 12px; color: #cbd5e1; line-height: 1.4; }
+  .item .meta {
+    display: flex; gap: 10px; margin-top: 6px;
+    font-size: 11px; color: #64748b;
+  }
+
+  .item .right {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  }
+  .item .time { font-size: 10px; color: #64748b; }
+  .item .cta {
+    background: rgba(255,255,255,0.06); color: #fff;
+    border: 1px solid rgba(255,255,255,0.10);
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    text-decoration: none; white-space: nowrap;
+  }
+  .item.cat-action .cta { background: #a855f7; border-color: #a855f7; }
+
+  /* ── Chat column ──────────────────────── */
+  .chat {
+    background: rgba(255,255,255,0.02);
+    display: flex; flex-direction: column;
+  }
+  .chat-head {
+    padding: 22px 22px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .chat-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #a855f7, #38bdf8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .chat-name { font-size: 14px; font-weight: 700; color: #fff; }
+  .chat-status {
+    font-size: 11px; color: #4ade80;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .chat-status::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: #4ade80; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .chat-body {
+    flex: 1; padding: 18px 22px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
+  .msg.coach {
+    background: rgba(56,189,248,0.10); color: #e5e7eb;
+    border: 1px solid rgba(56,189,248,0.18);
+    align-self: flex-start; border-bottom-left-radius: 4px;
+  }
+  .msg.me {
+    background: #a855f7; color: white;
+    align-self: flex-end; border-bottom-right-radius: 4px;
+  }
+  .msg-time {
+    font-size: 10px; color: #64748b; margin-top: 4px;
+  }
+  .msg.coach + .msg-time { align-self: flex-start; }
+  .msg.me + .msg-time { align-self: flex-end; }
+
+  .quick-actions {
+    padding: 0 22px 12px;
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .quick {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #cbd5e1; font-size: 11px; font-weight: 600;
+    padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  }
+  .quick:hover { border-color: rgba(255,255,255,0.18); color: #fff; }
+
+  .chat-input {
+    padding: 14px 18px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; gap: 8px;
+  }
+  .chat-input input {
+    flex: 1; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #fff; padding: 10px 14px; border-radius: 10px;
+    font: inherit; outline: none;
+  }
+  .chat-input input:focus { border-color: rgba(168,85,247,0.50); }
+  .chat-input button {
+    background: #a855f7; color: white; border: none;
+    padding: 10px 18px; border-radius: 10px;
+    font-weight: 700; cursor: pointer; font-size: 13px;
+  }
+
+  .footer-note {
+    margin-top: 18px; font-size: 11px; color: #64748b; text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ═══ INBOX COLUMN ═══ -->
+  <div class="inbox-col">
+    <div class="inbox-head">
+      <div>
+        <div class="inbox-title">📬 Inbox</div>
+        <div class="inbox-sub">8 unread · last sync just now</div>
+      </div>
+      <span class="chip">Mark all read</span>
+    </div>
+
+    <div class="filters">
+      <span class="chip active">All <span class="count">8</span></span>
+      <span class="chip">⚡ Actions <span class="count">3</span></span>
+      <span class="chip">🔔 Alerts <span class="count">2</span></span>
+      <span class="chip">⚖ Disputes <span class="count">1</span></span>
+      <span class="chip">💬 Coach <span class="count">2</span></span>
+    </div>
+
+    <div class="items">
+
+      <!-- Coach message -->
+      <div class="item cat-coach unread">
+        <div class="icon">💬</div>
+        <div class="body">
+          <div class="row1">
+            <span class="badge coach">Coach</span>
+            <span class="title">Wingman Coach</span>
+          </div>
+          <div class="snippet">"Tu es à 75% de ton schedule, +46% d'avance 🎯. Si tu veux, on fait une session courte ETH-01 ce soir ?"</div>
+          <div class="meta"><span>⏱ 12 min</span><span>répondre attend</span></div>
+        </div>
+        <div class="right">
+          <span class="time">12 min</span>
+          <a class="cta" href="#">Reply →</a>
+        </div>
+      </div>
+
+      <!-- Action -->
+      <div class="item cat-action unread">
+        <div class="icon">🎯</div>
+        <div class="body">
+          <div class="row1">
+            <span class="badge action">Action</span>
+            <span class="title">Daily Sharpener — Drill ETH-01</span>
+          </div>
+          <div class="snippet">12 questions hard · mastery 65% → ~80% · gardes ton +2j d'avance</div>
+          <div class="meta"><span>⏱ ~18 min</span><span>effort moyen</span></div>
+        </div>
+        <div class="right">
+          <span class="time">prêt</span>
+          <a class="cta" href="#">Start →</a>
+        </div>
+      </div>
+
+      <!-- Alert -->
+      <div class="item cat-alert unread urgent">
+        <div class="icon">🔔</div>
+        <div class="body">
+          <div class="row1">
+            <span class="badge alert">Alert</span>
+            <span class="title">Streak en risque</span>
+          </div>
+          <div class="snippet">36h sans session. Une mini-action de 15 min protège ta série.</div>
+          <div class="meta"><span>aujourd'hui</span><span>action recommandée</span></div>
+        </div>
+        <div class="right">
+          <span class="time">2h ago</span>
+          <a class="cta" href="#">Fix →</a>
+        </div>
+      </div>
+
+      <!-- Dispute resolved -->
+      <div class="item cat-dispute">
+        <div class="icon">⚖</div>
+        <div class="body">
+          <div class="row1">
+            <span class="badge dispute">Dispute</span>
+            <span class="title">Q3409 (FSA-12) — résolu en ta faveur</span>
+          </div>
+          <div class="snippet">L'arbiter Claude a confirmé que la réponse marquée correcte était fausse. +5 XP, weakness reset.</div>
+          <div class="meta"><span>il y a 2h</span><span>+5 XP</span></div>
+        </div>
+        <div class="right">
+          <span class="time">2h</span>
+          <a class="cta" href="#">View</a>
+        </div>
+      </div>
+
+      <!-- Coach message #2 -->
+      <div class="item cat-coach">
+        <div class="icon">💬</div>
+        <div class="body">
+          <div class="row1">
+            <span class="badge coach">Coach</span>
+            <span class="title">Wingman Coach</span>
+          </div>
+          <div class="snippet">"Bon job sur ton drill ETH-02 hier. J'ai noté que tu butes sur les Standards III — je te propose un mini-cours dédié quand tu veux."</div>
+          <div class="meta"><span>hier 21:30</span></div>
+        </div>
+        <div class="right">
+          <span class="time">hier</span>
+          <a class="cta" href="#">Reply</a>
+        </div>
+      </div>
+
+      <!-- Action: Marco Polo -->
+      <div class="item cat-action">
+        <div class="icon">🧭</div>
+        <div class="body">
+          <div class="row1">
+            <span class="badge action">Action</span>
+            <span class="title">Marco Polo — Explore DER-09</span>
+          </div>
+          <div class="snippet">Module jamais touché. 5 questions intro + LOS sheet pour te mettre dedans.</div>
+          <div class="meta"><span>⏱ ~12 min</span><span>effort faible</span></div>
+        </div>
+        <div class="right">
+          <span class="time">prêt</span>
+          <a class="cta" href="#">Explore</a>
+        </div>
+      </div>
+
+      <!-- Alert: weakness flagged -->
+      <div class="item cat-alert">
+        <div class="icon">⚠️</div>
+        <div class="body">
+          <div class="row1">
+            <span class="badge alert">Alert</span>
+            <span class="title">Nouvelle weakness flaggée</span>
+          </div>
+          <div class="snippet">FI-11-LO03 — 2 erreurs consécutives sur les duration measures. Mini-cours dispo.</div>
+          <div class="meta"><span>il y a 4h</span></div>
+        </div>
+        <div class="right">
+          <span class="time">4h</span>
+          <a class="cta" href="#">Treat</a>
+        </div>
+      </div>
+
+      <!-- Action: Never Surrender -->
+      <div class="item cat-action">
+        <div class="icon">🐇</div>
+        <div class="body">
+          <div class="row1">
+            <span class="badge action">Action</span>
+            <span class="title">Never Surrender — Reading Summary FI-06</span>
+          </div>
+          <div class="snippet">Si pas d'énergie : juste lire 10 min. Reading Summary + LOS Sheet. Easy.</div>
+          <div class="meta"><span>⏱ ~10 min</span><span>effort minimal</span></div>
+        </div>
+        <div class="right">
+          <span class="time">always</span>
+          <a class="cta" href="#">Open</a>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="footer-note">Mock statique · Inbox = Actions + Alerts + Disputes + Coach messages</p>
+  </div>
+
+  <!-- ═══ CHAT COLUMN ═══ -->
+  <div class="chat">
+    <div class="chat-head">
+      <div class="chat-avatar">🤖</div>
+      <div>
+        <div class="chat-name">Wingman Coach</div>
+        <div class="chat-status">online · répond en quelques secondes</div>
+      </div>
+    </div>
+    <div class="chat-body">
+      <div class="msg coach">Salut Houcem 👋 Tu es à 75% de ton schedule, +46% d'avance. Bon rythme.</div>
+      <div class="msg-time">12:01</div>
+      <div class="msg coach">J'ai vu que tu as buté sur 3 questions ETH-01 ce matin. C'est sur quoi exactement, l'ambiguïté Standard III B ou la confidentialité ?</div>
+      <div class="msg-time">12:02</div>
+      <div class="msg me">La confidentialité — je confonds avec l'exception "criminal acts"</div>
+      <div class="msg-time">12:14</div>
+      <div class="msg coach">Compris. Je peux te générer un mini-cours focalisé sur ce point précis (3 min lecture + 4 questions test). On fait ?</div>
+      <div class="msg-time">12:14</div>
+    </div>
+    <div class="quick-actions">
+      <span class="quick">Oui, génère 🎯</span>
+      <span class="quick">Pas maintenant</span>
+      <span class="quick">Donne-moi un drill 5 min</span>
+      <span class="quick">Schedule status ?</span>
+    </div>
+    <div class="chat-input">
+      <input type="text" placeholder="Écris à ton coach…">
+      <button>↵</button>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,103 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: wingman-db-prod
+    restart: always
+    environment:
+      POSTGRES_DB: wingman
+      POSTGRES_USER: wingman
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wingman_secret}
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    networks:
+      - wingman-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wingman"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: wingman-redis-prod
+    restart: always
+    networks:
+      - wingman-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: wingman-backend-prod
+    restart: always
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql+asyncpg://wingman:${POSTGRES_PASSWORD:-wingman_secret}@db:5432/wingman
+      REDIS_URL: redis://redis:6379/0
+      AUTH_DISABLED: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - assets_prod:/app/assets
+      - wingman_logs:/var/log/wingman
+    networks:
+      - wingman-internal
+      - proxy-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wingman-api.rule=Host(`wingman.veridis.shop`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.wingman-api.entrypoints=websecure"
+      - "traefik.http.routers.wingman-api.tls.certresolver=myresolver"
+      - "traefik.http.services.wingman-api.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: wingman-frontend-prod
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: https://wingman.veridis.shop
+    depends_on:
+      - backend
+    networks:
+      - wingman-internal
+      - proxy-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wingman-front.rule=Host(`wingman.veridis.shop`)"
+      - "traefik.http.routers.wingman-front.entrypoints=websecure"
+      - "traefik.http.routers.wingman-front.tls.certresolver=myresolver"
+      - "traefik.http.services.wingman-front.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://0.0.0.0:3000 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  pgdata_prod:
+  assets_prod:
+  wingman_logs:
+
+networks:
+  wingman-internal:
+  proxy-net:
+    external: true

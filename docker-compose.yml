@@ -1,0 +1,112 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: wingman-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wingman
+      POSTGRES_USER: wingman
+      POSTGRES_PASSWORD: wingman_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wingman"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: wingman-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: wingman-backend
+    restart: unless-stopped
+    # Watch only the app/ package — edits to standalone generator scripts
+    # (generate_all_assets.py etc.) must NOT trigger a reload, or they would
+    # kill in-flight Generate All pipelines running as asyncio tasks.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "app"]
+    ports:
+      - "8000:8000"
+    # backend/.env is loaded directly into the container so the API key isn't
+    # blocked by an empty ANTHROPIC_API_KEY in the shell that runs `docker
+    # compose up` (Claude Code, for one, exports it empty).
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://wingman:wingman_secret@db:5432/wingman
+      REDIS_URL: redis://redis:6379/0
+      # AUTH_DISABLED, SECRET_KEY, ADMIN_SECRET_KEY come from env_file above so
+      # toggling auth on/off doesn't require editing this file.
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - assets:/app/assets
+    networks:
+      - default
+      - proxy-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wingman-backend.rule=Host(`wingman.veridis.shop`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.wingman-backend.entrypoints=websecure"
+      - "traefik.http.routers.wingman-backend.tls.certresolver=myresolver"
+      - "traefik.http.services.wingman-backend.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    container_name: wingman-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - default
+      - proxy-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wingman-frontend.rule=Host(`wingman.veridis.shop`)"
+      - "traefik.http.routers.wingman-frontend.entrypoints=websecure"
+      - "traefik.http.routers.wingman-frontend.tls.certresolver=myresolver"
+      - "traefik.http.services.wingman-frontend.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const h=require('http');h.get('http://localhost:3000',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  proxy-net:
+    external: true
+
+volumes:
+  pgdata:
+  assets:

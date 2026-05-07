@@ -1,0 +1,35 @@
+{
+  "name": "wingman-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "sync-lms": "node ../scripts/sync-lm-data.mjs"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "lucide-react": "^0.469.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.5.0",
+    "@testing-library/react": "^16.0.1",
+    "@types/node": "25.5.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "happy-dom": "^15.7.4",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "6.0.2",
+    "vitest": "^2.1.2"
+  }
+}

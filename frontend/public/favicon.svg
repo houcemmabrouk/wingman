@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+    <linearGradient id="wing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E0D4FF"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+  <!-- Subtle inner shadow -->
+  <rect width="512" height="512" rx="108" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="4"/>
+  <!-- Wing shape -->
+  <g filter="url(#glow)" transform="translate(256,270) scale(1,-1)">
+    <!-- Main wing feathers -->
+    <path d="
+      M -10,0
+      C -10,40 -40,100 -100,140
+      C -130,158 -155,162 -170,155
+      C -140,140 -110,105 -90,70
+      C -70,35 -55,10 -10,0
+      Z
+    " fill="url(#wing)" opacity="0.95"/>
+    <path d="
+      M -5,5
+      C -5,55 -20,120 -60,175
+      C -80,200 -105,215 -125,212
+      C -95,190 -65,145 -45,100
+      C -25,55 -15,20 -5,5
+      Z
+    " fill="url(#wing)" opacity="0.85"/>
+    <path d="
+      M 0,10
+      C 5,70 5,140 -15,200
+      C -28,230 -48,250 -70,255
+      C -48,230 -28,185 -15,135
+      C -5,85 0,40 0,10
+      Z
+    " fill="url(#wing)" opacity="0.75"/>
+    <!-- Mirror wing (right side) -->
+    <path d="
+      M 10,0
+      C 10,40 40,100 100,140
+      C 130,158 155,162 170,155
+      C 140,140 110,105 90,70
+      C 70,35 55,10 10,0
+      Z
+    " fill="url(#wing)" opacity="0.95"/>
+    <path d="
+      M 5,5
+      C 5,55 20,120 60,175
+      C 80,200 105,215 125,212
+      C 95,190 65,145 45,100
+      C 25,55 15,20 5,5
+      Z
+    " fill="url(#wing)" opacity="0.85"/>
+    <path d="
+      M 0,10
+      C -5,70 -5,140 15,200
+      C 28,230 48,250 70,255
+      C 48,230 28,185 15,135
+      C 5,85 0,40 0,10
+      Z
+    " fill="url(#wing)" opacity="0.75"/>
+    <!-- Center body accent -->
+    <ellipse cx="0" cy="5" rx="12" ry="25" fill="white" opacity="0.5"/>
+  </g>
+</svg>

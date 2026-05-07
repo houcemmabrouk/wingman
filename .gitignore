@@ -1,0 +1,48 @@
+# Secrets
+.env
+.env.*
+*.key
+sk-ant-*
+sk-*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+.next/
+*.log
+*.tsbuildinfo
+
+# Database dumps / local dev
+*.db
+*.sqlite
+*.bak
+wingman_fallback.db
+
+# Generated/local assets
+backend/generated_content/
+backend/assets/
+backend/logs/
+backend/setup_assets/
+*.zip
+
+# Local assistant/workspace state
+.claude/
+.git.broken-*/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/

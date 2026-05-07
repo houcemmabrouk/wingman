@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Wingman · NBA v3 (Inbox / Chat / Report)</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0b1020;
+    color: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 22px 22px 60px; }
+
+  /* ── Header ───────────────────────────── */
+  .page-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .page-title { font-size: 22px; font-weight: 800; color: #fff; }
+  .page-sub { font-size: 12px; color: #94a3b8; }
+
+  .gps-mini {
+    margin-left: auto;
+    display: flex; gap: 10px; align-items: center;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.20);
+    padding: 6px 12px; border-radius: 999px;
+    font-size: 12px; color: #cbd5e1;
+  }
+  .gps-mini b { color: #4ade80; font-weight: 800; }
+  .gps-mini .sep { width: 1px; height: 14px; background: rgba(255,255,255,0.15); }
+
+  /* ── Tabs bar ─────────────────────────── */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .tab {
+    background: transparent; border: none; outline: none;
+    color: #94a3b8; font-size: 14px; font-weight: 600;
+    padding: 10px 18px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-family: inherit;
+    transition: color 120ms;
+  }
+  .tab:hover { color: #cbd5e1; }
+  .tab.active { color: #fff; border-bottom-color: #a855f7; }
+  .tab .badge {
+    background: rgba(168,85,247,0.18); color: #c084fc;
+    font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  }
+
+  /* ── Tab content ──────────────────────── */
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ─── INBOX ─── */
+  .inbox-grid {
+    display: grid; grid-template-columns: 1fr 360px; gap: 16px;
+  }
+  @media (max-width: 880px) { .inbox-grid { grid-template-columns: 1fr; } .inbox-side { display: none; } }
+  .inbox-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .filters { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .chip {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #cbd5e1;
+    padding: 5px 11px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip.active {
+    background: rgba(168,85,247,0.18);
+    border-color: rgba(168,85,247,0.50);
+    color: #fff;
+  }
+  .chip .count { font-size: 10px; opacity: 0.75; background: rgba(0,0,0,0.30); padding: 1px 6px; border-radius: 999px; }
+
+  .item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 12px 16px;
+    display: grid; grid-template-columns: 30px 1fr auto; gap: 10px;
+    align-items: center; cursor: pointer;
+    transition: border-color 120ms;
+  }
+  .item:hover { border-color: rgba(255,255,255,0.16); }
+  .item.unread { border-left: 3px solid #a855f7; }
+  .item.urgent { border-left: 3px solid #f97316; }
+  .item .icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .item.cat-action  .icon { background: rgba(168,85,247,0.18); }
+  .item.cat-alert   .icon { background: rgba(249,115,22,0.18); }
+  .item.cat-dispute .icon { background: rgba(34,197,94,0.18); }
+  .item.cat-coach   .icon { background: rgba(56,189,248,0.18); }
+
+  .item .row1 { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
+  .item .title { font-size: 13px; font-weight: 700; color: #fff; }
+  .item .badge {
+    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+    letter-spacing: 0.10em; text-transform: uppercase;
+  }
+  .badge.action  { background: rgba(168,85,247,0.16); color: #c084fc; }
+  .badge.alert   { background: rgba(249,115,22,0.16); color: #fb923c; }
+  .badge.dispute { background: rgba(34,197,94,0.16); color: #4ade80; }
+  .badge.coach   { background: rgba(56,189,248,0.16); color: #38bdf8; }
+  .item .snippet { font-size: 12px; color: #cbd5e1; line-height: 1.4; }
+  .item .meta {
+    display: flex; gap: 10px; margin-top: 4px;
+    font-size: 11px; color: #64748b;
+  }
+  .item .right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .item .time { font-size: 10px; color: #64748b; }
+  .item .cta {
+    background: rgba(255,255,255,0.06); color: #fff;
+    border: 1px solid rgba(255,255,255,0.10);
+    padding: 5px 11px; border-radius: 8px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    text-decoration: none; white-space: nowrap;
+  }
+  .item.cat-action .cta { background: #a855f7; border-color: #a855f7; }
+
+  /* Inbox sidebar (Never Surrender) */
+  .inbox-side {
+    background: linear-gradient(135deg, rgba(34,197,94,0.06), rgba(34,197,94,0.02));
+    border: 1px solid rgba(34,197,94,0.20);
+    border-radius: 14px; padding: 14px 16px;
+    height: fit-content;
+  }
+  .inbox-side h3 { margin: 0 0 6px; font-size: 13px; color: #fff; }
+  .inbox-side .sub { font-size: 11px; color: #94a3b8; font-style: italic; margin-bottom: 12px; }
+  .ns-tier {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color 120ms, background 120ms;
+  }
+  .ns-tier:hover { border-color: rgba(34,197,94,0.30); background: rgba(34,197,94,0.04); }
+  .ns-tier.suggested { border-color: rgba(34,197,94,0.55); background: rgba(34,197,94,0.08); }
+  .ns-tier .tier-label { font-size: 10px; color: #4ade80; font-weight: 700; letter-spacing: 0.10em; }
+  .ns-tier .tier-title { font-size: 13px; color: #fff; font-weight: 600; margin-top: 2px; }
+  .ns-tier .tier-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+  /* ─── CHAT ─── */
+  .chat-pane {
+    display: grid; grid-template-rows: auto 1fr auto auto;
+    height: calc(100vh - 200px); min-height: 500px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px; overflow: hidden;
+  }
+  .chat-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .chat-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #a855f7, #38bdf8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .chat-name { font-size: 14px; font-weight: 700; color: #fff; }
+  .chat-status {
+    font-size: 11px; color: #4ade80;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .chat-status::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: #4ade80; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .chat-body {
+    padding: 18px 22px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg { max-width: 70%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
+  .msg.coach {
+    background: rgba(56,189,248,0.10); color: #e5e7eb;
+    border: 1px solid rgba(56,189,248,0.18);
+    align-self: flex-start; border-bottom-left-radius: 4px;
+  }
+  .msg.me {
+    background: #a855f7; color: white;
+    align-self: flex-end; border-bottom-right-radius: 4px;
+  }
+  .msg-time { font-size: 10px; color: #64748b; margin-top: 4px; }
+  .msg.coach + .msg-time { align-self: flex-start; }
+  .msg.me + .msg-time { align-self: flex-end; }
+
+  .quick-actions { padding: 0 18px 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .quick {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #cbd5e1; font-size: 11px; font-weight: 600;
+    padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  }
+  .chat-input {
+    padding: 12px 18px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; gap: 8px;
+  }
+  .chat-input input {
+    flex: 1; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #fff; padding: 9px 13px; border-radius: 10px;
+    font: inherit; outline: none;
+  }
+  .chat-input input:focus { border-color: rgba(168,85,247,0.50); }
+  .chat-input button {
+    background: #a855f7; color: white; border: none;
+    padding: 9px 16px; border-radius: 10px;
+    font-weight: 700; cursor: pointer; font-size: 13px;
+  }
+
+  /* ─── REPORT ─── */
+  .report-block {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px; padding: 18px 22px;
+  }
+  .report-block h2 { font-size: 14px; color: #fff; margin: 12px 0 6px; font-weight: 700; }
+  .report-block h2:first-child { margin-top: 0; }
+  .report-block p { font-size: 13px; color: #cbd5e1; line-height: 1.6; margin: 6px 0; }
+  .phase-chip {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700; margin-left: 6px;
+    background: rgba(168,85,247,0.18); color: #c084fc;
+  }
+  .gen-button {
+    background: #a855f7; color: white; border: none;
+    padding: 10px 18px; border-radius: 10px;
+    font-weight: 700; cursor: pointer; font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  .footer-note { margin-top: 24px; font-size: 11px; color: #64748b; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ═══ HEADER ═══ -->
+  <div class="page-head">
+    <div>
+      <div class="page-title">Next Best Action</div>
+      <div class="page-sub">Salut Houcem 👋 · J-105 examen</div>
+    </div>
+    <div class="gps-mini">
+      <span>Schedule <b>+46%</b></span>
+      <span class="sep"></span>
+      <span>Velocity <b>+2.2%/sem</b></span>
+      <span class="sep"></span>
+      <span>Streak <b>🔥 12</b></span>
+    </div>
+  </div>
+
+  <!-- ═══ TABS ═══ -->
+  <div class="tabs">
+    <button class="tab active" data-tab="inbox">📬 Inbox <span class="badge">8</span></button>
+    <button class="tab" data-tab="chat">💬 Chat</button>
+    <button class="tab" data-tab="report">📊 Instant Report</button>
+  </div>
+
+  <!-- ═══ INBOX TAB ═══ -->
+  <div class="tab-pane active" id="tab-inbox">
+    <div class="inbox-grid">
+      <div>
+        <div class="filters">
+          <span class="chip active">All <span class="count">8</span></span>
+          <span class="chip">⚡ Actions <span class="count">3</span></span>
+          <span class="chip">🔔 Alerts <span class="count">2</span></span>
+          <span class="chip">⚖ Disputes <span class="count">1</span></span>
+          <span class="chip">💬 Coach <span class="count">2</span></span>
+        </div>
+        <div class="inbox-list">
+
+          <div class="item cat-coach unread">
+            <div class="icon">💬</div>
+            <div class="body">
+              <div class="row1"><span class="badge coach">Coach</span><span class="title">Wingman Coach</span></div>
+              <div class="snippet">"Tu es à +46% du schedule 🎯. On fait une session courte ETH-01 ce soir ?"</div>
+              <div class="meta"><span>réponse attendue</span></div>
+            </div>
+            <div class="right"><span class="time">12 min</span><a class="cta" href="#">Reply →</a></div>
+          </div>
+
+          <div class="item cat-action unread">
+            <div class="icon">🎯</div>
+            <div class="body">
+              <div class="row1"><span class="badge action">Action</span><span class="title">Daily Sharpener — Drill ETH-01</span></div>
+              <div class="snippet">12 questions hard · mastery 65% → ~80% · gardes ton +2j d'avance</div>
+              <div class="meta"><span>⏱ ~18 min</span><span>effort moyen</span></div>
+            </div>
+            <div class="right"><span class="time">prêt</span><a class="cta" href="#">Start →</a></div>
+          </div>
+
+          <div class="item cat-alert unread urgent">
+            <div class="icon">🔔</div>
+            <div class="body">
+              <div class="row1"><span class="badge alert">Alert</span><span class="title">Streak en risque</span></div>
+              <div class="snippet">36h sans session. Une mini-action de 15 min protège ta série.</div>
+              <div class="meta"><span>aujourd'hui</span></div>
+            </div>
+            <div class="right"><span class="time">2h ago</span><a class="cta" href="#">Fix →</a></div>
+          </div>
+
+          <div class="item cat-dispute">
+            <div class="icon">⚖</div>
+            <div class="body">
+              <div class="row1"><span class="badge dispute">Dispute</span><span class="title">Q3409 (FSA-12) — résolu en ta faveur</span></div>
+              <div class="snippet">L'arbiter Claude a confirmé. +5 XP, weakness reset.</div>
+              <div class="meta"><span>il y a 2h</span><span>+5 XP</span></div>
+            </div>
+            <div class="right"><span class="time">2h</span><a class="cta" href="#">View</a></div>
+          </div>
+
+          <div class="item cat-coach">
+            <div class="icon">💬</div>
+            <div class="body">
+              <div class="row1"><span class="badge coach">Coach</span><span class="title">Wingman Coach</span></div>
+              <div class="snippet">"Bon job sur ETH-02 hier. Tu butes sur Standards III — mini-cours dispo."</div>
+              <div class="meta"><span>hier 21:30</span></div>
+            </div>
+            <div class="right"><span class="time">hier</span><a class="cta" href="#">Reply</a></div>
+          </div>
+
+          <div class="item cat-action">
+            <div class="icon">🧭</div>
+            <div class="body">
+              <div class="row1"><span class="badge action">Action</span><span class="title">Marco Polo — Explore DER-09</span></div>
+              <div class="snippet">Module jamais touché. 5 questions intro + LOS sheet.</div>
+              <div class="meta"><span>⏱ ~12 min</span><span>effort faible</span></div>
+            </div>
+            <div class="right"><span class="time">prêt</span><a class="cta" href="#">Explore</a></div>
+          </div>
+
+          <div class="item cat-alert">
+            <div class="icon">⚠️</div>
+            <div class="body">
+              <div class="row1"><span class="badge alert">Alert</span><span class="title">Nouvelle weakness flaggée</span></div>
+              <div class="snippet">FI-11-LO03 — 2 erreurs consécutives sur duration measures.</div>
+              <div class="meta"><span>il y a 4h</span></div>
+            </div>
+            <div class="right"><span class="time">4h</span><a class="cta" href="#">Treat</a></div>
+          </div>
+
+          <div class="item cat-action">
+            <div class="icon">🦸</div>
+            <div class="body">
+              <div class="row1"><span class="badge action">Action</span><span class="title">Superman Challenge — FI-06 Bond Valuation</span></div>
+              <div class="snippet">Critical LM, mastery 42%. Action max ROI : 30 questions hard.</div>
+              <div class="meta"><span>⏱ ~50 min</span><span>effort élevé</span></div>
+            </div>
+            <div class="right"><span class="time">hero</span><a class="cta" href="#">Engage</a></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Sidebar Never Surrender -->
+      <aside class="inbox-side">
+        <h3>🐇 Never Surrender</h3>
+        <div class="sub">"Je fais le max que je peux, même si je suis mort."</div>
+
+        <div class="ns-tier">
+          <div class="tier-label">TIER 1 · PASSIF</div>
+          <div class="tier-title">Audio Reading Summary</div>
+          <div class="tier-meta">5-10 min · écoute</div>
+        </div>
+        <div class="ns-tier suggested">
+          <div class="tier-label">TIER 2 · ENCODING ✓</div>
+          <div class="tier-title">Reading + LOS Sheet</div>
+          <div class="tier-meta">10-15 min · lecture</div>
+        </div>
+        <div class="ns-tier">
+          <div class="tier-label">TIER 3 · + CHECK</div>
+          <div class="tier-title">Reading + LOS + quiz easy</div>
+          <div class="tier-meta">15-20 min · 3-5 q</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ═══ CHAT TAB ═══ -->
+  <div class="tab-pane" id="tab-chat">
+    <div class="chat-pane">
+      <div class="chat-head">
+        <div class="chat-avatar">🤖</div>
+        <div>
+          <div class="chat-name">Wingman Coach</div>
+          <div class="chat-status">online · répond en quelques secondes</div>
+        </div>
+      </div>
+      <div class="chat-body">
+        <div class="msg coach">Salut Houcem 👋 Tu es à +46% du schedule. Bon rythme.</div>
+        <div class="msg-time">12:01</div>
+        <div class="msg coach">J'ai vu que tu as buté sur 3 questions ETH-01 ce matin. C'est l'ambiguïté Standard III B ou la confidentialité ?</div>
+        <div class="msg-time">12:02</div>
+        <div class="msg me">La confidentialité — je confonds avec l'exception "criminal acts"</div>
+        <div class="msg-time">12:14</div>
+        <div class="msg coach">Compris. Je peux te générer un mini-cours focalisé sur ce point précis (3 min lecture + 4 questions test). On fait ?</div>
+        <div class="msg-time">12:14</div>
+      </div>
+      <div class="quick-actions">
+        <span class="quick">Oui, génère 🎯</span>
+        <span class="quick">Pas maintenant</span>
+        <span class="quick">Donne-moi un drill 5 min</span>
+        <span class="quick">Schedule status ?</span>
+      </div>
+      <div class="chat-input">
+        <input type="text" placeholder="Écris à ton coach…">
+        <button>↵</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ REPORT TAB ═══ -->
+  <div class="tab-pane" id="tab-report">
+    <button class="gen-button">↻ Régénérer (Sonnet 4.6, ~$0.015)</button>
+    <div class="report-block">
+      <h2>Vue d'ensemble</h2>
+      <p>145 tentatives sur 60 jours, 18 erreurs (12% — bon). 5 LM touchés
+      dont 3 en Simulation, 1 en Consolidation, 1 en Découverte. J-105 examen.</p>
+
+      <h2>Plan par module</h2>
+      <p><b>ETH-01 · Ethics and Trust</b> <span class="phase-chip">🎯 Simulation</span><br>
+      Stats : 6/40 ratées (15%), coverage 6/8 LOS (75%), avg 52s.<br>
+      Action : mock thématique 25q ETH cette semaine, timing &lt; 60s/question.</p>
+
+      <p><b>FSA-01 · Intro to FSA</b> <span class="phase-chip">🎯 Simulation</span><br>
+      Stats : 3/10 ratées (30%), coverage 4/4 LOS (100%), avg 71s.<br>
+      Action : drill 5 questions hard pour passer sous 20% error rate.</p>
+
+      <p><b>DER-09 · Put-Call Parity</b> <span class="phase-chip">🔍 Découverte</span><br>
+      Stats : 0 attempts, 0/7 LOS touchés.<br>
+      Action : tour exploratoire, 5 questions intro, lit le LOS Sheet avant.</p>
+
+      <h2>Synthèse — 3 priorités</h2>
+      <p>• <b>Drill ETH-01</b> · 12 questions hard cette semaine<br>
+      • <b>Explore DER-09</b> · couverture 0%, à initier rapidement<br>
+      • <b>Mock thématique CORP</b> · ton topic le plus en retard</p>
+    </div>
+  </div>
+
+  <p class="footer-note">Mock v3 · 1 page NBA · 3 tabs (Inbox / Chat / Instant Report) · pour valider</p>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
