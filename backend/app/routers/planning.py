@@ -215,11 +215,23 @@ async def plan_today(
 # ── POST /api/plan/entry/{id}/complete ────────────────────────
 
 @router.post("/entry/{entry_id}/complete")
-async def complete_entry(entry_id: int, db: AsyncSession = Depends(get_db)):
-    await db.execute(text("""
-        UPDATE plan_entries SET status = 'completed' WHERE id = :id
-    """), {"id": entry_id})
+async def complete_entry(
+    entry_id: int,
+    user_id: str = Depends(current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(text("""
+        UPDATE plan_entries pe
+        SET status = 'completed'
+        FROM study_plans sp
+        WHERE pe.id = :id
+          AND pe.plan_id = sp.id
+          AND sp.user_id = :uid
+    """), {"id": entry_id, "uid": user_id})
     await db.commit()
+    if result.rowcount == 0:
+        return {"error": "entry not found"}
+    await invalidate_planning_cache(user_id)
     return {"status": "completed", "entry_id": entry_id}
 
 
@@ -405,8 +417,8 @@ async def rollback_plan(
 
     target_id = plans[version - 1]
     await db.execute(text("""
-        UPDATE study_plans SET is_active = true WHERE id = :id
-    """), {"id": target_id})
+        UPDATE study_plans SET is_active = true WHERE id = :id AND user_id = :uid
+    """), {"id": target_id, "uid": user_id})
     await db.commit()
 
     return {"status": "rolled_back", "active_plan_id": target_id, "version": version}

@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.services.dispute_arbiter import submit_and_arbitrate
 
@@ -33,6 +34,11 @@ def _require_user_id(request: Request) -> str:
     if not isinstance(uid, str) or not uid:
         raise HTTPException(status_code=401, detail="authentication required")
     return uid
+
+
+def _verify_admin_key(key: str) -> None:
+    if not settings.admin_secret_key or key != settings.admin_secret_key:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
 
 
 @router.post("/questions/{question_id}/dispute")
@@ -86,18 +92,16 @@ async def list_my_disputes(request: Request, db: AsyncSession = Depends(get_db))
 
 
 # ── Admin ────────────────────────────────────────────────────────────────
-# Only used by admin UI; the AdminMiddleware-style key check is left to a
-# later pass — the router is mounted under /api/v1 and protected by the
-# main AuthMiddleware (any authenticated user can call the next two
-# endpoints; in production we will tighten via a roles model).
 
 @router.get("/admin/disputes")
 async def admin_list_disputes(
     request: Request,
+    key: str = "",
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     _require_user_id(request)
+    _verify_admin_key(key)
     where = ""
     params: dict = {}
     if status:
@@ -128,8 +132,13 @@ async def admin_list_disputes(
 
 
 @router.get("/admin/audit/summary")
-async def admin_audit_summary(request: Request, db: AsyncSession = Depends(get_db)):
+async def admin_audit_summary(
+    request: Request,
+    key: str = "",
+    db: AsyncSession = Depends(get_db),
+):
     _require_user_id(request)
+    _verify_admin_key(key)
     counts = await db.execute(text("""
         SELECT
             (SELECT COUNT(*) FROM questions)                                    AS total_questions,

@@ -540,10 +540,15 @@ async def qcm_start(
 # ── POST /api/qcm/check — per-question instant feedback (no DB write) ──
 
 @router.post("/qcm/check")
-async def qcm_check(req: QCMCheckRequest, db: AsyncSession = Depends(get_db)):
+async def qcm_check(
+    req: QCMCheckRequest,
+    user_id: str = Depends(current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """Reveal the correct answer + explanation for a single question.
     No write — qcm/submit still persists all attempts at the end of the session.
     """
+    _ = user_id
     row = await db.execute(
         text("SELECT correct_answer, explanation FROM questions WHERE id = :qid"),
         {"qid": req.question_id},

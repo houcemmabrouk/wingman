@@ -15,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.deps import current_user_id
 from app.config import settings
 from app.services.content_pipeline import generate_pdf_content, generate_audio_content, generate_full_lm
 from app.services import job_state
@@ -461,8 +462,9 @@ def _streaming_zip_response(file_pairs, filename: str) -> StreamingResponse:
 
 # ── GET /api/content/download-everything — all content as ZIP ──
 @router.get("/download-everything")
-async def download_everything():
+async def download_everything(user_id: str = Depends(current_user_id)):
     """Download ALL generated content across all modules as a single ZIP."""
+    _ = user_id
     if not GENERATED_ROOT.exists():
         raise HTTPException(status_code=404, detail="No generated content found")
 
@@ -493,7 +495,10 @@ async def download_everything():
 
 # ── GET /api/content/download-by-type/{asset_key} — all assets of one type ──
 @router.get("/download-by-type/{asset_key}")
-async def download_by_asset_type(asset_key: str):
+async def download_by_asset_type(
+    asset_key: str,
+    user_id: str = Depends(current_user_id),
+):
     """Download all instances of a specific asset type across all modules.
 
     The frontend Content Manager lists asset types like `00_full_course`
@@ -502,6 +507,7 @@ async def download_by_asset_type(asset_key: str):
     first existing extension wins to avoid zipping a `.md` script when
     the user asked for the `.mp3` audio.
     """
+    _ = user_id
     if not GENERATED_ROOT.exists():
         raise HTTPException(status_code=404, detail="No generated content found")
 
@@ -548,8 +554,12 @@ async def download_by_asset_type(asset_key: str):
 
 # ── GET /api/content/download-by-topic/{topic} — all content for a topic ──
 @router.get("/download-by-topic/{topic}")
-async def download_by_topic(topic: str):
+async def download_by_topic(
+    topic: str,
+    user_id: str = Depends(current_user_id),
+):
     """Download all generated content for a specific topic."""
+    _ = user_id
     topic_dir = GENERATED_ROOT / topic
     if not topic_dir.exists():
         raise HTTPException(status_code=404, detail=f"No content for topic: {topic}")
@@ -578,8 +588,9 @@ async def download_by_topic(topic: str):
 
 # ── GET /api/content/generated — list all available modules ──
 @router.get("/generated")
-async def list_generated_modules():
+async def list_generated_modules(user_id: str = Depends(current_user_id)):
     """Return list of all modules that have generated content."""
+    _ = user_id
     modules = []
     if not GENERATED_ROOT.exists():
         return modules
@@ -604,8 +615,13 @@ async def list_generated_modules():
 
 # ── GET /api/content/generated/{topic}/{lm_code} — manifest ─
 @router.get("/generated/{topic}/{lm_code}")
-async def get_generated_manifest(topic: str, lm_code: str):
+async def get_generated_manifest(
+    topic: str,
+    lm_code: str,
+    user_id: str = Depends(current_user_id),
+):
     """Return manifest for a specific module's generated content."""
+    _ = user_id
     manifest_path = GENERATED_ROOT / topic / lm_code / "manifest.json"
     if not manifest_path.exists():
         raise HTTPException(status_code=404, detail="No generated content for this module")
@@ -616,8 +632,13 @@ async def get_generated_manifest(topic: str, lm_code: str):
 # ── GET /api/content/generated/{topic}/{lm_code}/download-all ─
 # NOTE: This route MUST be before the {filename} catch-all route
 @router.get("/generated/{topic}/{lm_code}/download-all")
-async def download_all_generated(topic: str, lm_code: str):
+async def download_all_generated(
+    topic: str,
+    lm_code: str,
+    user_id: str = Depends(current_user_id),
+):
     """Download all generated content for a module as a ZIP archive."""
+    _ = user_id
     module_dir = GENERATED_ROOT / topic / lm_code
     manifest_path = module_dir / "manifest.json"
     if not manifest_path.exists():
@@ -1176,7 +1197,11 @@ async def generate_all_assets(topic: str, lm_code: str, req: GenerateAllRequest,
 
 # ── GET /api/content/generate-all/job/{job_id} ────────────────
 @router.get("/generate-all/job/{job_id}")
-async def generate_all_job(job_id: str):
+async def generate_all_job(
+    job_id: str,
+    user_id: str = Depends(current_user_id),
+):
+    _ = user_id
     state = await job_state.get(job_id)
     if state is None:
         raise HTTPException(status_code=404, detail="Job not found or expired")
@@ -1571,8 +1596,14 @@ async def empty_trash(key: str = ""):
 # HEAD is needed by the frontend to probe whether an asset exists without
 # pulling the bytes (e.g. the Level 1 fiche check on /learning-by-doing).
 @router.api_route("/generated/{topic}/{lm_code}/{filename}", methods=["GET", "HEAD"])
-async def download_generated_file(topic: str, lm_code: str, filename: str):
+async def download_generated_file(
+    topic: str,
+    lm_code: str,
+    filename: str,
+    user_id: str = Depends(current_user_id),
+):
     """Download a specific generated content file."""
+    _ = user_id
     file_path = GENERATED_ROOT / topic / lm_code / filename
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -1646,7 +1677,11 @@ async def generate_full(req: GenerateRequest, key: str = "", db: AsyncSession = 
 # ── GET /api/content/library ─────────────────────────────────
 
 @router.get("/library")
-async def content_library(db: AsyncSession = Depends(get_db)):
+async def content_library(
+    user_id: str = Depends(current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    _ = user_id
     result = await db.execute(text("""
         SELECT ca.id, ca.asset_type, ca.title, ca.url, ca.metadata,
                lm.id AS lm_id, lm.code AS lm_code, lm.title AS lm_title,
@@ -1683,7 +1718,12 @@ async def content_library(db: AsyncSession = Depends(get_db)):
 # ── GET /api/content/asset/{asset_id} ─────────────────────────
 
 @router.get("/asset/{asset_id}")
-async def get_asset(asset_id: int, db: AsyncSession = Depends(get_db)):
+async def get_asset(
+    asset_id: int,
+    user_id: str = Depends(current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    _ = user_id
     result = await db.execute(text(
         "SELECT url, asset_type, title FROM content_assets WHERE id = :id"
     ), {"id": asset_id})
@@ -1702,7 +1742,12 @@ async def get_asset(asset_id: int, db: AsyncSession = Depends(get_db)):
 # ── POST /api/content/search ─────────────────────────────────
 
 @router.post("/search")
-async def search_content(req: SearchRequest, db: AsyncSession = Depends(get_db)):
+async def search_content(
+    req: SearchRequest,
+    user_id: str = Depends(current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    _ = user_id
     # Stub: In production, embed query via ChromaDB and search content_vectors
     # For now, do a simple text search on content_assets titles
     result = await db.execute(text("""
